@@ -1,0 +1,19 @@
+services:
+  docker-info-manager:
+    build: .
+    container_name: docker-info-manager
+    ports:
+      - "8888:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data:/app/data
+    environment:
+      - DOCKER_SOCK_PATH=/var/run/docker.sock
+      - DATABASE_PATH=/app/data/docker_info.db
+      - POLL_INTERVAL=30
+      # Login credentials (CHANGE THESE in production!)
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - JWT_EXPIRE_HOURS=24
+    restart: unless-stopped
