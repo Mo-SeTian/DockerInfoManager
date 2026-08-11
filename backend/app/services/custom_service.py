@@ -18,22 +18,23 @@ _ALL_FIELDS = (
 
 
 def _row_to_response(row) -> ContainerCustomResponse:
+    d = dict(row)
     return ContainerCustomResponse(
-        id=row["id"],
-        alias=row["alias"],
-        icon=row["icon"],
-        icon_url=row["icon_url"],
-        group_name=row["group_name"],
-        notes=row["notes"],
-        is_favorite=bool(row["is_favorite"]),
-        is_hidden=bool(row["is_hidden"]),
-        jump_protocol=row["jump_protocol"] or "http",
-        jump_port=row["jump_port"],
-        private_url=row["private_url"],
-        public_url=row["public_url"],
-        url_preference=row["url_preference"] or "auto",
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
+        id=d["id"],
+        alias=d.get("alias"),
+        icon=d.get("icon"),
+        icon_url=d.get("icon_url"),
+        group_name=d.get("group_name"),
+        notes=d.get("notes"),
+        is_favorite=bool(d.get("is_favorite", 0)),
+        is_hidden=bool(d.get("is_hidden", 0)),
+        jump_protocol=d.get("jump_protocol") or "http",
+        jump_port=d.get("jump_port"),
+        private_url=d.get("private_url"),
+        public_url=d.get("public_url"),
+        url_preference=d.get("url_preference") or "auto",
+        created_at=d.get("created_at"),
+        updated_at=d.get("updated_at"),
     )
 
 
