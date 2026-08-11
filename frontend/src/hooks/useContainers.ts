@@ -49,16 +49,16 @@ export function useContainers(showHidden = false) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [cData, sData, gData] = await Promise.all([
+      // 独立请求，任意一个失败不影响其他
+      const [cRes, sRes, gRes] = await Promise.allSettled([
         api.getContainers(showHidden),
         api.getStats(),
         api.getGroups(),
       ]);
-      setContainers(cData);
-      setStats(sData);
-      setGroups(gData);
-    } catch (e) {
-      console.error('Failed to fetch data:', e);
+      if (cRes.status === 'fulfilled') setContainers(cRes.value);
+      else console.error('Containers fetch failed:', cRes.reason);
+      if (sRes.status === 'fulfilled') setStats(sRes.value);
+      if (gRes.status === 'fulfilled') setGroups(gRes.value);
     } finally {
       setLoading(false);
     }

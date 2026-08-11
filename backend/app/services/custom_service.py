@@ -173,10 +173,24 @@ def set_hidden(container_ids: List[str], is_hidden: bool) -> int:
 def list_groups() -> List[GroupResponse]:
     db = get_db()
     rows = db.execute(
-        "SELECT * FROM groups_config ORDER BY is_pinned DESC, sort_order ASC, id ASC"
+        "SELECT * FROM groups_config ORDER BY sort_order ASC, id ASC"
     ).fetchall()
+    result = []
+    for row in rows:
+        containers = db.execute(
+            "SELECT id, group_name FROM container_custom WHERE group_name = ?",
+            (row["name"],),
+        ).fetchall()
+        result.append(GroupResponse(
+            id=row["id"],
+            name=row["name"],
+            color=row["color"],
+            sort_order=row["sort_order"],
+            container_count=len(containers),
+            running_count=0,
+        ))
     db.close()
-    return [_group_row_to_response(db, row) for row in rows]
+    return result
 
 
 def _group_row_to_response(db, row) -> GroupResponse:
