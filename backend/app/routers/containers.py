@@ -1,6 +1,6 @@
 """Container read-only API."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from ..services.docker_service import docker_client
 from ..services.custom_service import get_all_custom, get_container_custom
 
@@ -8,13 +8,17 @@ router = APIRouter(prefix="/api/containers", tags=["containers"])
 
 
 @router.get("")
-def list_containers():
+def list_containers(show_hidden: bool = Query(False)):
     containers = docker_client.list_containers(all=True)
     custom_map = get_all_custom()
 
     result = []
     for c in containers:
         custom = custom_map.get(c.id, None)
+        is_hidden = custom.is_hidden if custom else False
+        if is_hidden and not show_hidden:
+            continue
+
         result.append({
             "id": c.id,
             "name": c.name,
@@ -26,11 +30,16 @@ def list_containers():
             # Custom metadata
             "alias": custom.alias if custom else None,
             "icon": custom.icon if custom else None,
+            "icon_url": custom.icon_url if custom else None,
             "group_name": custom.group_name if custom else None,
             "notes": custom.notes if custom else None,
             "is_favorite": custom.is_favorite if custom else False,
+            "is_hidden": is_hidden,
             "jump_protocol": custom.jump_protocol if custom else "http",
             "jump_port": custom.jump_port if custom else None,
+            "private_url": custom.private_url if custom else None,
+            "public_url": custom.public_url if custom else None,
+            "url_preference": custom.url_preference if custom else "auto",
         })
     return result
 

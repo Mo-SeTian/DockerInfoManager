@@ -19,120 +19,107 @@ export default function GroupManager({ onClose, onRefresh, initialGroups }: Prop
 
   useEffect(() => { setGroups(initialGroups); }, [initialGroups]);
 
+  const reload = async () => {
+    const data = await api.getGroups();
+    setGroups(data);
+    onRefresh();
+  };
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
     try {
       await api.createGroup(newName.trim(), newColor);
       setNewName('');
-      const data = await api.getGroups();
-      setGroups(data);
-      onRefresh();
-    } catch (e: any) {
-      alert(e.message);
-    }
+      await reload();
+    } catch (e: any) { alert(e.message); }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('删除分组后，容器将变为「未分组」。确定删除？')) return;
-    try {
-      await api.deleteGroup(id);
-      const data = await api.getGroups();
-      setGroups(data);
-      onRefresh();
-    } catch (e: any) {
-      alert(e.message);
-    }
+    await api.deleteGroup(id);
+    await reload();
   };
 
   const handleRename = async (id: number) => {
     if (!editName.trim()) return;
-    try {
-      await api.updateGroup(id, { name: editName.trim() });
-      setEditingId(null);
-      const data = await api.getGroups();
-      setGroups(data);
-      onRefresh();
-    } catch (e: any) {
-      alert(e.message);
-    }
+    await api.updateGroup(id, { name: editName.trim() });
+    setEditingId(null);
+    await reload();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-bg-card border border-border-subtle rounded-2xl w-full max-w-md p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-bg-card border border-border-subtle rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-text-primary">管理分组</h3>
-          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <h2 className="text-lg font-bold text-text-primary">管理分组</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-xl">✕</button>
         </div>
 
         {/* Create new */}
-        <div className="flex gap-2 mb-5">
+        <div className="mb-5">
           <input
-            type="text"
             value={newName}
             onChange={e => setNewName(e.target.value)}
             placeholder="新分组名称"
-            className="flex-1 px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent"
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            className="w-full px-3 py-2 mb-2 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm"
           />
-          <div className="flex gap-1 items-center">
+          <div className="flex flex-wrap gap-2 mb-3">
             {COLORS.map(c => (
               <button
                 key={c}
                 onClick={() => setNewColor(c)}
-                className={`w-5 h-5 rounded-full border-2 transition-all ${newColor === c ? 'border-white scale-125' : 'border-transparent'}`}
+                className={`w-7 h-7 rounded-full ${newColor === c ? 'ring-2 ring-offset-2 ring-offset-bg-card ring-white' : ''}`}
                 style={{ backgroundColor: c }}
               />
             ))}
           </div>
           <button
             onClick={handleCreate}
-            className="px-3 py-2 bg-accent hover:bg-accent-hover text-bg-primary text-sm font-medium rounded-lg transition-colors"
+            className="w-full py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium"
           >
-            创建
+            创建分组
           </button>
         </div>
 
-        {/* Group list */}
-        <div className="space-y-2 max-h-64 overflow-y-auto">
+        {/* Existing groups */}
+        <div className="space-y-2">
           {groups.map(g => (
-            <div key={g.id} className="flex items-center gap-3 p-2.5 bg-bg-primary border border-border-subtle rounded-lg">
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: g.color }} />
+            <div key={g.id} className="flex items-center gap-2 p-2 bg-bg-primary rounded-lg">
+              <span className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: g.color }} />
               {editingId === g.id ? (
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  className="flex-1 px-2 py-1 bg-bg-card rounded text-sm text-text-primary focus:outline-none focus:border-accent border border-border-subtle"
-                  autoFocus
-                  onKeyDown={e => e.key === 'Enter' && handleRename(g.id)}
-                  onBlur={() => setEditingId(null)}
-                />
+                <>
+                  <input
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    className="flex-1 px-2 py-1 bg-bg-card border border-border-subtle rounded text-text-primary text-sm"
+                    autoFocus
+                  />
+                  <button onClick={() => handleRename(g.id)} className="text-xs text-accent">保存</button>
+                  <button onClick={() => setEditingId(null)} className="text-xs text-text-secondary">取消</button>
+                </>
               ) : (
-                <span className="flex-1 text-sm text-text-primary">{g.name}</span>
+                <>
+                  <span className="flex-1 text-sm text-text-primary truncate">{g.name}</span>
+                  <span className="text-xs text-text-secondary">{g.container_count}</span>
+                  <button
+                    onClick={() => { setEditingId(g.id); setEditName(g.name); }}
+                    className="text-xs text-text-secondary hover:text-accent"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => handleDelete(g.id)}
+                    className="text-xs text-text-secondary hover:text-red-400"
+                  >
+                    删除
+                  </button>
+                </>
               )}
-              <span className="text-xs text-text-secondary">{g.container_count} 容器</span>
-              <button
-                onClick={() => { setEditingId(g.id); setEditName(g.name); }}
-                className="text-xs text-text-secondary hover:text-accent transition-colors"
-              >
-                重命名
-              </button>
-              <button
-                onClick={() => handleDelete(g.id)}
-                className="text-xs text-red-400 hover:text-red-300 transition-colors"
-              >
-                删除
-              </button>
             </div>
           ))}
           {groups.length === 0 && (
-            <p className="text-center text-text-secondary text-sm py-6">暂无分组</p>
+            <p className="text-center text-sm text-text-secondary py-4">还没有分组，创建一个吧</p>
           )}
         </div>
       </div>

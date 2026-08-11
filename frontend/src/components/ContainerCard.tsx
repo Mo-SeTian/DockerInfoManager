@@ -1,52 +1,113 @@
 import { useState } from 'react';
 import type { ContainerData } from '../hooks/useContainers';
 import ContainerDetail from './ContainerDetail';
+import * as api from '../utils/api';
 
 interface Props {
   container: ContainerData;
   onUpdate: () => void;
+  selected?: boolean;
+  onSelectToggle?: (id: string) => void;
+  selectionMode?: boolean;
 }
 
 const STATE_COLORS: Record<string, string> = {
-  running: 'bg-green-dot',
-  paused: 'bg-yellow-dot',
-  exited: 'bg-red-dot',
-  restarting: 'bg-yellow-dot',
-  removing: 'bg-gray-dot',
+  running: 'bg-green-500',
+  paused: 'bg-yellow-500',
+  exited: 'bg-red-500',
+  restarting: 'bg-yellow-500',
+  removing: 'bg-gray-500',
 };
 
 const DEFAULT_ICON = '📦';
 
-export default function ContainerCard({ container, onUpdate }: Props) {
+export default function ContainerCard({ container, onUpdate, selected, onSelectToggle, selectionMode }: Props) {
   const [showDetail, setShowDetail] = useState(false);
 
-  const dotColor = STATE_COLORS[container.state] || 'bg-gray-dot';
+  const dotColor = STATE_COLORS[container.state] || 'bg-gray-500';
   const displayName = container.alias || container.name;
-  const displayIcon = container.icon || DEFAULT_ICON;
+  const hasIconUrl = container.icon_url && container.icon_url.trim();
 
-  const primaryPort = container.ports.find(
-    p => p.host_port && p.protocol === 'tcp'
-  );
+  const renderIcon = () => {
+    if (hasIconUrl) {
+      return (
+        <img
+          src={container.icon_url!}
+          alt=""
+          className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      );
+    }
+    return <span className="text-2xl flex-shrink-0">{container.icon || DEFAULT_ICON}</span>;
+  };
 
-  const handleJump = (e: React.MouseEvent, port: number | null) => {
-    e.stopPropagation();
-    if (!port) return;
+  const getJumpUrl = (): string | null => {
+    // Priority: explicit URLs > port-based URL
+    const pref = container.url_preference || 'auto';
+
+    if (container.private_url && container.public_url) {
+      // Auto: try private first (same network), fallback public
+      if (pref === 'private') return container.private_url;
+      if (pref === 'public') return container.public_url;
+      // auto — return private, browser will try it
+      return container.private_url;
+    }
+    if (container.private_url && pref !== 'public') return container.private_url;
+    if (container.public_url && pref !== 'private') return container.public_url;
+
+    // Fall back to port-based URL
+    const primaryPort = container.ports.find(
+      p => p.host_port && p.protocol === 'tcp'
+    );
+    if (!primaryPort?.host_port) return null;
     const protocol = container.jump_protocol || 'http';
-    // Use the first port's host IP, default to localhost
-    const host = 'localhost';
-    window.open(`${protocol}://${host}:${port}`, '_blank');
+    return `${protocol}://localhost:${primaryPort.host_port}`;
+  };
+
+  const handleJump = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = getJumpUrl();
+    if (url) window.open(url, '_blank');
+  };
+
+  const handleHide = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await api.bulkHide([container.id], true);
+    onUpdate();
+  };
+
+  const handleCardClick = () => {
+    if (selectionMode && onSelectToggle) {
+      onSelectToggle(container.id);
+    } else {
+      setShowDetail(true);
+    }
   };
 
   return (
     <>
       <div
-        onClick={() => setShowDetail(true)}
-        className="bg-bg-card hover:bg-bg-card-hover border border-border-subtle rounded-xl p-4 cursor-pointer transition-all hover:border-accent/30 group"
+        onClick={handleCardClick}
+        className={`bg-bg-card hover:bg-bg-card-hover border rounded-xl p-4 cursor-pointer transition-all group relative ${
+          selected ? 'border-accent ring-1 ring-accent' : 'border-border-subtle hover:border-accent/30'
+        }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-2xl">{displayIcon}</span>
+            {selectionMode && (
+              <input
+                type="checkbox"
+                checked={selected || false}
+                onChange={() => onSelectToggle?.(container.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 accent-sky-500 flex-shrink-0"
+              />
+            )}
+            <div onClick={handleJump} className="cursor-pointer hover:opacity-80 transition-opacity">
+              {renderIcon()}
+            </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-text-primary truncate">
                 {displayName}
@@ -56,65 +117,47 @@ export default function ContainerCard({ container, onUpdate }: Props) {
               )}
             </div>
           </div>
-          <div className={`w-2.5 h-2.5 rounded-full ${dotColor} flex-shrink-0`} />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+            {!selectionMode && (
+              <button
+                onClick={handleHide}
+                className="opacity-0 group-hover:opacity-100 text-xs text-text-secondary hover:text-red-400 transition-all"
+                title="隐藏"
+              >
+                👁️‍🗨️
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Image */}
-        <div className="flex items-center gap-1.5 mb-3 text-xs text-text-secondary">
-          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
-          <span className="truncate">{container.image}</span>
-        </div>
+        <p className="text-xs text-text-secondary truncate mb-2">{container.image}</p>
 
         {/* Ports */}
         {container.ports.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {container.ports.map((p, i) => {
-              if (p.host_port) {
-                const protocol = container.jump_protocol || 'http';
-                const host = 'localhost';
-                return (
-                  <a
-                    key={i}
-                    href={`${protocol}://${host}:${p.host_port}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 border border-accent/30 rounded-md text-xs text-accent hover:bg-accent/20 transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                    {p.host_port}:{p.container_port}
-                  </a>
-                );
-              }
-              return (
-                <span key={i} className="px-2 py-0.5 bg-border-subtle rounded-md text-xs text-text-secondary">
-                  {p.container_port}/{p.protocol}
-                </span>
-              );
-            })}
+            {container.ports.slice(0, 4).map((p, i) => (
+              <button
+                key={i}
+                onClick={handleJump}
+                className="px-2 py-0.5 text-xs bg-accent/10 text-accent rounded hover:bg-accent/20 transition-colors"
+              >
+                {p.host_port}→{p.container_port}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Footer: group tag */}
-        {container.group_name && (
-          <div className="mt-3">
-            <span className="inline-block px-2 py-0.5 rounded text-xs bg-accent/10 text-accent">
-              {container.group_name}
-            </span>
-          </div>
+        {/* Hidden badge */}
+        {container.is_hidden && (
+          <span className="absolute top-2 right-2 text-xs text-yellow-500">隐藏</span>
         )}
       </div>
 
-      {/* Detail Panel */}
       {showDetail && (
         <ContainerDetail
-          container={container}
+          containerId={container.id}
           onClose={() => setShowDetail(false)}
           onUpdate={onUpdate}
         />

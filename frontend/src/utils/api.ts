@@ -1,101 +1,94 @@
+import * as api from './api';
 import { getToken, removeToken } from './token';
 
-const BASE = '/api';
+export { getToken, setToken, removeToken } from './token';
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers,
+export async function login(username: string, password: string) {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
   });
-
-  if (res.status === 401) {
-    removeToken();
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(body.detail || `HTTP ${res.status}`);
-  }
-
+  if (!res.ok) throw new Error('用户名或密码错误');
   return res.json();
 }
 
-// Auth
-export function login(username: string, password: string) {
-  return request<{ access_token: string }>('/auth/login', {
+export async function logout() {
+  await fetch('/api/auth/logout', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    headers: _authHeaders(),
   });
+  removeToken();
 }
 
-export function refreshToken() {
-  return request<{ access_token: string }>('/auth/refresh', { method: 'POST' });
+function _authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export function logout() {
-  return request('/auth/logout', { method: 'POST' });
+async function _get(url: string) {
+  const res = await fetch(url, { headers: _authHeaders() });
+  if (res.status === 401) { removeToken(); window.location.href = '/login'; throw new Error('未登录'); }
+  if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+  return res.json();
+}
+
+async function _post(url: string, body?: unknown) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ..._authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) { removeToken(); window.location.href = '/login'; throw new Error('未登录'); }
+  if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+  return res.json();
+}
+
+async function _put(url: string, body?: unknown) {
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ..._authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) { removeToken(); window.location.href = '/login'; throw new Error('未登录'); }
+  if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+  return res.json();
+}
+
+async function _delete(url: string) {
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: _authHeaders(),
+  });
+  if (res.status === 401) { removeToken(); window.location.href = '/login'; throw new Error('未登录'); }
+  if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+  return res.json();
 }
 
 // Containers
-export function getContainers() {
-  return request<any[]>('/containers');
-}
-
-export function getContainer(id: string) {
-  return request<any>(`/containers/${id}`);
-}
+export const getContainers = (showHidden = false) =>
+  _get(`/api/containers${showHidden ? '?show_hidden=true' : ''}`);
+export const getContainerDetail = (id: string) => _get(`/api/containers/${id}`);
 
 // Stats
-export function getStats() {
-  return request<any>('/stats');
-}
+export const getStats = () => _get('/api/stats');
 
 // Groups
-export function getGroups() {
-  return request<any[]>('/groups');
-}
-
-export function createGroup(name: string, color: string) {
-  return request<any>('/groups', {
-    method: 'POST',
-    body: JSON.stringify({ name, color }),
-  });
-}
-
-export function updateGroup(id: number, data: any) {
-  return request<any>(`/groups/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-export function deleteGroup(id: number) {
-  return request(`/groups/${id}`, { method: 'DELETE' });
-}
+export const getGroups = () => _get('/api/groups');
+export const createGroup = (name: string, color: string) =>
+  _post('/api/groups', { name, color });
+export const updateGroup = (id: number, data: Record<string, unknown>) =>
+  _put(`/api/groups/${id}`, data);
+export const deleteGroup = (id: number) => _delete(`/api/groups/${id}`);
 
 // Custom
-export function updateContainerCustom(id: string, data: any) {
-  return request<any>(`/custom/containers/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
+export const updateContainerCustom = (id: string, data: Record<string, unknown>) =>
+  _put(`/api/custom/containers/${id}`, data);
+export const deleteContainerCustom = (id: string) =>
+  _delete(`/api/custom/containers/${id}`);
 
-export function moveContainerGroup(id: string, groupName: string | null) {
-  return request<any>(`/custom/containers/${id}/group`, {
-    method: 'PUT',
-    body: JSON.stringify({ group_name: groupName }),
-  });
-}
+// Bulk
+export const bulkMove = (container_ids: string[], group_name: string | null) =>
+  _post('/api/custom/bulk-move', { container_ids, group_name });
+export const bulkHide = (container_ids: string[], is_hidden: boolean) =>
+  _post('/api/custom/bulk-hide', { container_ids, is_hidden });

@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import type { ContainerData, GroupData } from '../hooks/useContainers';
+import type { GroupData, ContainerData } from '../hooks/useContainers';
 import ContainerCard from './ContainerCard';
 
 interface Props {
-  group: GroupData | null; // null = ungrouped
+  group: GroupData | null;
   containers: ContainerData[];
   onUpdate: () => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelectToggle?: (id: string) => void;
 }
 
-export default function GroupSection({ group, containers, onUpdate }: Props) {
+export default function GroupSection({ group, containers, onUpdate, selectionMode, selectedIds, onSelectToggle }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   if (containers.length === 0) return null;
@@ -19,10 +22,9 @@ export default function GroupSection({ group, containers, onUpdate }: Props) {
 
   return (
     <div className="mb-6">
-      {/* Group header */}
       <div
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-3 mb-3 cursor-pointer select-none group"
+        className="flex items-center gap-3 mb-3 cursor-pointer select-none"
       >
         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
         <span className="text-base font-semibold text-text-primary">{name}</span>
@@ -36,11 +38,17 @@ export default function GroupSection({ group, containers, onUpdate }: Props) {
         </svg>
       </div>
 
-      {/* Container cards */}
       {!collapsed && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {containers.map(c => (
-            <ContainerCard key={c.id} container={c} onUpdate={onUpdate} />
+            <ContainerCard
+              key={c.id}
+              container={c}
+              onUpdate={onUpdate}
+              selectionMode={selectionMode}
+              selected={selectedIds?.has(c.id)}
+              onSelectToggle={onSelectToggle}
+            />
           ))}
         </div>
       )}

@@ -9,12 +9,12 @@ interface Props {
 
 export default function GroupTabs({ groups, activeGroup, onSelect, onManage }: Props) {
   return (
-    <div className="flex gap-2 flex-wrap items-center">
+    <div className="flex gap-2 flex-wrap items-center overflow-x-auto">
       <button
         onClick={() => onSelect(null)}
-        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
           activeGroup === null
-            ? 'bg-accent text-bg-primary'
+            ? 'bg-accent text-white'
             : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'
         }`}
       >
@@ -24,9 +24,9 @@ export default function GroupTabs({ groups, activeGroup, onSelect, onManage }: P
         <button
           key={g.id}
           onClick={() => onSelect(g.name)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeGroup === g.name
-              ? 'bg-accent text-bg-primary'
+              ? 'bg-accent text-white'
               : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'
           }`}
           style={activeGroup === g.name ? {} : { borderColor: g.color + '40' }}
@@ -40,7 +40,7 @@ export default function GroupTabs({ groups, activeGroup, onSelect, onManage }: P
       ))}
       <button
         onClick={onManage}
-        className="px-3 py-1.5 rounded-lg text-sm text-text-secondary border border-dashed border-border-subtle hover:border-accent hover:text-accent transition-colors"
+        className="px-3 py-1.5 rounded-lg text-sm text-text-secondary border border-dashed border-border-subtle hover:border-accent hover:text-accent transition-colors whitespace-nowrap"
       >
         ⚙️ 管理分组
       </button>

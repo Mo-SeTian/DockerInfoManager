@@ -1,170 +1,147 @@
 import { useState, useEffect } from 'react';
-import type { ContainerData } from '../hooks/useContainers';
 import * as api from '../utils/api';
 import CustomEditor from './CustomEditor';
 
 interface Props {
-  container: ContainerData;
+  containerId: string;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export default function ContainerDetail({ container, onClose, onUpdate }: Props) {
-  const [detail, setDetail] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+interface DetailData {
+  id: string;
+  name: string;
+  image: string;
+  image_id: string;
+  state: string;
+  status: string;
+  created_at: string | null;
+  started_at: string | null;
+  ports: { host_ip: string; host_port: number | null; container_port: number; protocol: string }[];
+  networks: { name: string; ip_address: string | null }[];
+  mounts: { source: string; destination: string; mode: string }[];
+  env_vars: Record<string, string>;
+  custom?: Record<string, unknown>;
+}
+
+export default function ContainerDetail({ containerId, onClose, onUpdate }: Props) {
+  const [detail, setDetail] = useState<DetailData | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getContainer(container.id)
-      .then(d => { setDetail(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [container.id]);
+    api.getContainerDetail(containerId).then(d => {
+      setDetail(d);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [containerId]);
 
-  const icon = container.icon || '📦';
-  const name = container.alias || container.name;
-  const dotColor = container.state === 'running' ? 'bg-green-dot'
-    : container.state === 'paused' ? 'bg-yellow-dot'
-    : container.state === 'exited' ? 'bg-red-dot'
-    : 'bg-gray-dot';
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+        <div className="relative text-text-secondary">加载中...</div>
+      </div>
+    );
+  }
+
+  if (!detail) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Panel */}
-      <div className="relative bg-bg-card border border-border-subtle rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 bg-bg-card border-b border-border-subtle p-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{icon}</span>
-            <div>
-              <h2 className="text-lg font-bold text-text-primary">{name}</h2>
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <div className={`w-2 h-2 rounded-full ${dotColor}`} />
-                {container.state}
-              </div>
-            </div>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+        <div className="relative bg-bg-card border border-border-subtle rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6 shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-bold text-text-primary truncate">{detail.name}</h2>
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-xl">✕</button>
           </div>
-          <button onClick={onClose} className="text-text-secondary hover:text-text-primary transition-colors">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="p-5 space-y-4">
-          {loading ? (
-            <div className="text-center text-text-secondary py-8">加载中...</div>
-          ) : detail ? (
-            <>
-              {/* Image */}
-              <InfoRow label="镜像" value={container.image} />
-              <InfoRow label="镜像 ID" value={container.id} mono />
+          {/* Info grid */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <InfoRow label="状态" value={`${detail.state} (${detail.status})`} />
+            <InfoRow label="镜像" value={detail.image} mono />
+            <InfoRow label="容器 ID" value={detail.id.slice(0, 12)} mono />
+            {detail.created_at && <InfoRow label="创建时间" value={detail.created_at} />}
+            {detail.started_at && <InfoRow label="启动时间" value={detail.started_at} />}
+          </div>
 
-              {/* Ports */}
-              {container.ports.length > 0 && (
-                <div>
-                  <span className="text-xs text-text-secondary">端口映射</span>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {container.ports.map((p, i) => (
-                      <span key={i} className="px-2 py-1 bg-bg-primary rounded-md text-xs text-text-primary border border-border-subtle">
-                        {p.host_port ? `${p.host_port}→${p.container_port}/${p.protocol}` : `${p.container_port}/${p.protocol}`}
-                      </span>
-                    ))}
-                  </div>
+          {/* Ports */}
+          {detail.ports.length > 0 && (
+            <Section title="端口映射">
+              {detail.ports.map((p, i) => (
+                <div key={i} className="text-sm text-text-primary font-mono">
+                  {p.host_ip}:{p.host_port} → :{p.container_port}/{p.protocol}
                 </div>
-              )}
-
-              {/* Networks */}
-              {detail.networks?.length > 0 && (
-                <div>
-                  <span className="text-xs text-text-secondary">网络</span>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {detail.networks.map((n: any, i: number) => (
-                      <span key={i} className="px-2 py-1 bg-bg-primary rounded-md text-xs text-text-primary border border-border-subtle">
-                        {n.name}{n.ip_address ? ` (${n.ip_address})` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Mounts */}
-              {detail.mounts?.length > 0 && (
-                <div>
-                  <span className="text-xs text-text-secondary">挂载卷</span>
-                  <div className="mt-1.5 space-y-1">
-                    {detail.mounts.map((m: any, i: number) => (
-                      <div key={i} className="px-2 py-1 bg-bg-primary rounded-md text-xs text-text-primary border border-border-subtle">
-                        {m.source} → {m.destination} <span className="text-text-secondary">({m.mode})</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Resources */}
-              {detail.cpu_usage !== null && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-bg-primary rounded-lg p-3 border border-border-subtle">
-                    <span className="text-xs text-text-secondary">CPU</span>
-                    <div className="text-lg font-bold text-accent">{detail.cpu_usage}%</div>
-                  </div>
-                  <div className="bg-bg-primary rounded-lg p-3 border border-border-subtle">
-                    <span className="text-xs text-text-secondary">内存</span>
-                    <div className="text-lg font-bold text-accent">
-                      {detail.memory_usage != null ? `${(detail.memory_usage / 1024 / 1024).toFixed(0)} MB` : 'N/A'}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Dates */}
-              <InfoRow label="创建时间" value={container.created_at || 'N/A'} />
-              <InfoRow label="启动时间" value={detail.started_at || 'N/A'} />
-
-              {/* Notes */}
-              {container.notes && (
-                <div>
-                  <span className="text-xs text-text-secondary">备注</span>
-                  <p className="mt-1 text-sm text-text-primary bg-bg-primary rounded-lg p-3 border border-border-subtle">
-                    {container.notes}
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center text-text-secondary py-8">无法加载容器详情</div>
+              ))}
+            </Section>
           )}
-        </div>
 
-        {/* Footer actions */}
-        <div className="sticky bottom-0 bg-bg-card border-t border-border-subtle p-4 flex gap-3">
-          <button
-            onClick={() => setShowEditor(true)}
-            className="flex-1 py-2 bg-accent hover:bg-accent-hover text-bg-primary font-medium rounded-lg transition-colors text-sm"
-          >
-            编辑自定义信息
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-border-subtle hover:border-text-secondary text-text-secondary rounded-lg transition-colors text-sm"
-          >
-            关闭
-          </button>
+          {/* Networks */}
+          {detail.networks.length > 0 && (
+            <Section title="网络">
+              {detail.networks.map((n, i) => (
+                <div key={i} className="text-sm text-text-primary">
+                  {n.name}: <span className="font-mono">{n.ip_address || '—'}</span>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Mounts */}
+          {detail.mounts.length > 0 && (
+            <Section title="挂载">
+              {detail.mounts.map((m, i) => (
+                <div key={i} className="text-xs text-text-primary font-mono break-all">
+                  {m.source} → {m.destination} ({m.mode})
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* Custom metadata */}
+          {detail.custom && (
+            <Section title="自定义信息">
+              {!!detail.custom.alias && <div className="text-sm">别名: {String(detail.custom.alias)}</div>}
+              {!!detail.custom.notes && <div className="text-sm">备注: {String(detail.custom.notes)}</div>}
+              {!!detail.custom.private_url && <div className="text-sm break-all">内网: {String(detail.custom.private_url)}</div>}
+              {!!detail.custom.public_url && <div className="text-sm break-all">公网: {String(detail.custom.public_url)}</div>}
+            </Section>
+          )}
+
+          {/* Footer */}
+          <div className="sticky bottom-0 -mx-6 -mb-6 bg-bg-card border-t border-border-subtle p-4 flex gap-3">
+            <button
+              onClick={() => setShowEditor(true)}
+              className="flex-1 py-2 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg transition-colors text-sm"
+            >
+              编辑自定义信息
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-border-subtle text-text-secondary hover:text-text-primary rounded-lg transition-colors text-sm"
+            >
+              关闭
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Custom Editor Modal */}
       {showEditor && (
         <CustomEditor
-          container={container}
-          onClose={() => { setShowEditor(false); onUpdate(); }}
+          containerId={containerId}
+          existing={detail.custom || {}}
+          onClose={() => setShowEditor(false)}
+          onSaved={() => {
+            setShowEditor(false);
+            onUpdate();
+            // refresh detail
+            api.getContainerDetail(containerId).then(setDetail);
+          }}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -175,6 +152,15 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
       <p className={`mt-0.5 text-sm text-text-primary ${mono ? 'font-mono text-xs' : ''} break-all`}>
         {value}
       </p>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-5">
+      <h3 className="text-xs font-semibold text-text-secondary uppercase mb-2">{title}</h3>
+      <div className="space-y-1">{children}</div>
     </div>
   );
 }

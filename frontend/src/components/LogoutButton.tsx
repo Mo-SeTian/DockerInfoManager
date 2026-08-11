@@ -1,14 +1,12 @@
-import { getToken, removeToken } from '../utils/token';
 import { useNavigate } from 'react-router-dom';
+import { removeToken } from '../utils/token';
 
 export default function LogoutButton() {
   const navigate = useNavigate();
-
   const handleLogout = () => {
     removeToken();
     navigate('/login', { replace: true });
   };
-
   return (
     <button
       onClick={handleLogout}

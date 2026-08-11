@@ -2,12 +2,11 @@ import type { StatsData } from '../hooks/useContainers';
 
 export default function StatsBar({ stats }: { stats: StatsData | null }) {
   if (!stats) return null;
-
   return (
     <div className="flex gap-4 flex-wrap">
       <StatBadge label="总数" value={stats.total_containers} />
-      <StatBadge label="运行中" value={stats.running} color="text-green-dot" />
-      <StatBadge label="已停止" value={stats.stopped} color="text-red-dot" />
+      <StatBadge label="运行中" value={stats.running} color="text-green-500" />
+      <StatBadge label="已停止" value={stats.stopped} color="text-red-500" />
     </div>
   );
 }
