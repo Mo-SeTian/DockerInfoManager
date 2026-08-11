@@ -42,14 +42,35 @@ class ContainerInfo(BaseModel):
     memory_limit: Optional[int] = None  # bytes
 
 
+class ContainerInfo(BaseModel):
+    id: str
+    name: str
+    image: str
+    image_id: str
+    status: str
+    state: str
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    ports: list[PortMapping] = []
+    networks: list[NetworkInfo] = []
+    mounts: list[MountInfo] = []
+    env_vars: dict[str, str] = {}
+    compose_project: Optional[str] = None
+    compose_service: Optional[str] = None
+    cpu_usage: Optional[float] = None
+    memory_usage: Optional[int] = None
+    memory_limit: Optional[int] = None
+
+
 class ContainerListItem(BaseModel):
-    """Lightweight container info for list views."""
     id: str
     name: str
     image: str
     state: str
     status: str
     ports: list[PortMapping] = []
+    compose_project: Optional[str] = None
+    compose_service: Optional[str] = None
     created_at: Optional[str] = None
 
 

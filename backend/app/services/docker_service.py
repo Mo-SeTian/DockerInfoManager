@@ -80,6 +80,7 @@ class DockerReadOnlyClient:
 
 
 def _to_list_item(c: Container) -> ContainerListItem:
+    labels = c.attrs.get("Config", {}).get("Labels", {}) or {}
     return ContainerListItem(
         id=c.short_id,
         name=c.name,
@@ -87,12 +88,15 @@ def _to_list_item(c: Container) -> ContainerListItem:
         state=c.status,
         status=c.status,
         ports=_extract_ports(c),
+        compose_project=labels.get("com.docker.compose.project"),
+        compose_service=labels.get("com.docker.compose.service"),
         created_at=_ts(c.attrs.get("Created")),
     )
 
 
 def _to_container_info(c: Container) -> ContainerInfo:
     attrs = c.attrs
+    labels = attrs.get("Config", {}).get("Labels", {}) or {}
     net_settings = attrs.get("NetworkSettings", {})
 
     # Extract networks
@@ -163,6 +167,8 @@ def _to_container_info(c: Container) -> ContainerInfo:
         networks=networks,
         mounts=mounts,
         env_vars=env_vars,
+        compose_project=labels.get("com.docker.compose.project"),
+        compose_service=labels.get("com.docker.compose.service"),
         cpu_usage=cpu,
         memory_usage=mem,
         memory_limit=mem_limit,

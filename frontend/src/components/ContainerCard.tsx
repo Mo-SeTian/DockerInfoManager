@@ -134,6 +134,15 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
         {/* Image */}
         <p className="text-xs text-text-secondary truncate mb-2">{container.image}</p>
 
+        {/* Compose service badge */}
+        {container.compose_service && (
+          <div className="mb-2 flex items-center gap-1">
+            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              🐳 {container.compose_service}
+            </span>
+          </div>
+        )}
+
         {/* Ports */}
         {container.ports.length > 0 && (
           <div className="flex flex-wrap gap-1.5">

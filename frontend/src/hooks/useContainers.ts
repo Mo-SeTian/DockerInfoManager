@@ -8,6 +8,8 @@ export interface ContainerData {
   state: string;
   status: string;
   ports: { host_ip: string; host_port: number | null; container_port: number; protocol: string }[];
+  compose_project: string | null;
+  compose_service: string | null;
   created_at: string | null;
   alias: string | null;
   icon: string | null;
@@ -21,6 +23,9 @@ export interface ContainerData {
   private_url: string | null;
   public_url: string | null;
   url_preference: string;
+  merge_name: string | null;
+  merge_url: string | null;
+  sort_order: number;
 }
 
 export interface StatsData {
@@ -41,28 +46,24 @@ export interface GroupData {
   running_count: number;
 }
 
-export function useContainers(showHidden = false) {
+export function useContainers() {
   const [containers, setContainers] = useState<ContainerData[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    try {
-      // 独立请求，任意一个失败不影响其他
-      const [cRes, sRes, gRes] = await Promise.allSettled([
-        api.getContainers(showHidden),
-        api.getStats(),
-        api.getGroups(),
-      ]);
-      if (cRes.status === 'fulfilled') setContainers(cRes.value);
-      else console.error('Containers fetch failed:', cRes.reason);
-      if (sRes.status === 'fulfilled') setStats(sRes.value);
-      if (gRes.status === 'fulfilled') setGroups(gRes.value);
-    } finally {
-      setLoading(false);
-    }
-  }, [showHidden]);
+    const [cRes, sRes, gRes] = await Promise.allSettled([
+      api.getContainers(),
+      api.getStats(),
+      api.getGroups(),
+    ]);
+    if (cRes.status === 'fulfilled') setContainers(cRes.value);
+    else console.error('Containers fetch failed:', cRes.reason);
+    if (sRes.status === 'fulfilled') setStats(sRes.value);
+    if (gRes.status === 'fulfilled') setGroups(gRes.value);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchData();

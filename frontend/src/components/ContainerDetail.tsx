@@ -29,6 +29,13 @@ export default function ContainerDetail({ containerId, onClose, onUpdate }: Prop
   const [showEditor, setShowEditor] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // 锁住 body 滚动，只让弹窗内容滚动
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   useEffect(() => {
     api.getContainerDetail(containerId).then(d => {
       setDetail(d);

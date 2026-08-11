@@ -58,6 +58,9 @@ def init_db():
         "private_url": "TEXT",
         "public_url": "TEXT",
         "url_preference": "TEXT DEFAULT 'auto'",
+        "merge_name": "TEXT",
+        "merge_url": "TEXT",
+        "sort_order": "INTEGER DEFAULT 0",
     })
     _migrate_columns(conn, "groups_config", {
         "is_pinned": "INTEGER DEFAULT 0",

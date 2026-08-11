@@ -14,6 +14,7 @@ _ALL_FIELDS = (
     "is_favorite", "is_hidden",
     "jump_protocol", "jump_port",
     "private_url", "public_url", "url_preference",
+    "merge_name", "merge_url", "sort_order",
 )
 
 
@@ -33,6 +34,9 @@ def _row_to_response(row) -> ContainerCustomResponse:
         private_url=d.get("private_url"),
         public_url=d.get("public_url"),
         url_preference=d.get("url_preference") or "auto",
+        merge_name=d.get("merge_name"),
+        merge_url=d.get("merge_url"),
+        sort_order=d.get("sort_order", 0),
         created_at=d.get("created_at"),
         updated_at=d.get("updated_at"),
     )

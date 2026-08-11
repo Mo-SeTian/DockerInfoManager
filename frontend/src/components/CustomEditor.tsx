@@ -21,6 +21,7 @@ export default function CustomEditor({ containerId, existing, onClose, onSaved }
   const [privateUrl, setPrivateUrl] = useState((existing.private_url as string) || '');
   const [publicUrl, setPublicUrl] = useState((existing.public_url as string) || '');
   const [urlPref, setUrlPref] = useState((existing.url_preference as string) || 'auto');
+  const [mergeUrl, setMergeUrl] = useState((existing.merge_url as string) || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [iconMode, setIconMode] = useState<'emoji' | 'url'>(iconUrl ? 'url' : 'emoji');
@@ -40,6 +41,7 @@ export default function CustomEditor({ containerId, existing, onClose, onSaved }
         private_url: privateUrl || null,
         public_url: publicUrl || null,
         url_preference: urlPref,
+        merge_url: mergeUrl || null,
       });
       onSaved();
       onClose();
@@ -122,6 +124,16 @@ export default function CustomEditor({ containerId, existing, onClose, onSaved }
               </select>
             </div>
           </div>
+        </Field>
+
+        {/* Compose 合并跳转 */}
+        <Field label="Compose 合并跳转 URL">
+          <input value={mergeUrl} onChange={e => setMergeUrl(e.target.value)}
+            placeholder="https://your-app.com"
+            className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent" />
+          <p className="text-xs text-text-secondary mt-1">
+            设置后，Compose 项目组的「跳转」按钮将使用此地址
+          </p>
         </Field>
 
         {/* Legacy jump config */}

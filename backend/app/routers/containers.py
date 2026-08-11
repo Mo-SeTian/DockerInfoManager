@@ -26,6 +26,8 @@ def list_containers(show_hidden: bool = Query(False)):
             "state": c.state,
             "status": c.status,
             "ports": [p.model_dump() for p in c.ports],
+            "compose_project": c.compose_project,
+            "compose_service": c.compose_service,
             "created_at": c.created_at,
             # Custom metadata
             "alias": custom.alias if custom else None,
@@ -40,6 +42,9 @@ def list_containers(show_hidden: bool = Query(False)):
             "private_url": custom.private_url if custom else None,
             "public_url": custom.public_url if custom else None,
             "url_preference": custom.url_preference if custom else "auto",
+            "merge_name": custom.merge_name if custom else None,
+            "merge_url": custom.merge_url if custom else None,
+            "sort_order": custom.sort_order if custom else 0,
         })
     return result
 

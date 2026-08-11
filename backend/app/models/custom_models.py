@@ -17,6 +17,9 @@ class ContainerCustomUpdate(BaseModel):
     private_url: Optional[str] = None
     public_url: Optional[str] = None
     url_preference: Optional[str] = Field(default=None, description="auto | private | public")
+    merge_name: Optional[str] = None
+    merge_url: Optional[str] = None
+    sort_order: Optional[int] = None
 
 
 class ContainerCustomResponse(BaseModel):
@@ -33,6 +36,9 @@ class ContainerCustomResponse(BaseModel):
     private_url: Optional[str] = None
     public_url: Optional[str] = None
     url_preference: str = "auto"
+    merge_name: Optional[str] = None
+    merge_url: Optional[str] = None
+    sort_order: int = 0
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
