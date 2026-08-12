@@ -77,6 +77,12 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
     onUpdate();
   };
 
+  const handleUnhide = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await api.bulkHide([container.id], false);
+    onUpdate();
+  };
+
   const handleCardClick = () => {
     if (selectionMode && onSelectToggle) {
       onSelectToggle(container.id);
@@ -91,7 +97,7 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
         onClick={handleCardClick}
         className={`bg-bg-card hover:bg-bg-card-hover border rounded-xl p-4 cursor-pointer transition-all group relative ${
           selected ? 'border-accent ring-1 ring-accent' : 'border-border-subtle hover:border-accent/30'
-        }`}
+        } ${container.is_hidden ? 'opacity-60' : ''}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -121,11 +127,11 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
             <span className={`w-2 h-2 rounded-full ${dotColor}`} />
             {!selectionMode && (
               <button
-                onClick={handleHide}
-                className="opacity-0 group-hover:opacity-100 text-xs text-text-secondary hover:text-red-400 transition-all"
-                title="隐藏"
+                onClick={container.is_hidden ? handleUnhide : handleHide}
+                className="opacity-0 group-hover:opacity-100 text-xs transition-all"
+                title={container.is_hidden ? '取消隐藏' : '隐藏'}
               >
-                👁️‍🗨️
+                {container.is_hidden ? '👁️' : '👁️‍🗨️'}
               </button>
             )}
           </div>
