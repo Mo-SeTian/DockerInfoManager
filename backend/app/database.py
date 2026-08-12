@@ -62,6 +62,7 @@ def init_db():
         "merge_url": "TEXT",
         "sort_order": "INTEGER DEFAULT 0",
         "tags": "TEXT",
+        "container_name": "TEXT",
     })
     _migrate_columns(conn, "groups_config", {
         "is_pinned": "INTEGER DEFAULT 0",

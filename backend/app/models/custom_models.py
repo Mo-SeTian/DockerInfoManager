@@ -41,6 +41,7 @@ class ContainerCustomResponse(BaseModel):
     merge_url: Optional[str] = None
     sort_order: int = 0
     tags: Optional[str] = None
+    container_name: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

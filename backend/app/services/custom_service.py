@@ -37,6 +37,7 @@ def _row_to_response(row) -> ContainerCustomResponse:
         merge_name=d.get("merge_name"),
         merge_url=d.get("merge_url"),
         sort_order=d.get("sort_order", 0),
+        container_name=d.get("container_name"),
         created_at=d.get("created_at"),
         updated_at=d.get("updated_at"),
     )
@@ -396,3 +397,45 @@ def place_container(
     db.commit()
     db.close()
     return True
+
+
+def migrate_container_id(old_id: str, new_id: str, name: str) -> bool:
+    """Move a custom-data row from an old container ID to a new one (same name).
+
+    Docker re-creates containers on rebuild (new ID). We keep the config by
+    rebinding the row to the new ID keyed on the stable container name.
+    """
+    db = get_db()
+    try:
+        exists = db.execute(
+            "SELECT id FROM container_custom WHERE id = ?", (new_id,)
+        ).fetchone()
+        if exists:
+            db.execute("DELETE FROM container_custom WHERE id = ?", (old_id,))
+            db.execute(
+                "UPDATE container_custom SET container_name = ?, updated_at = datetime('now') WHERE id = ?",
+                (name, new_id),
+            )
+        else:
+            db.execute(
+                "UPDATE container_custom SET id = ?, container_name = ?, updated_at = datetime('now') WHERE id = ?",
+                (new_id, name, old_id),
+            )
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
+def update_container_name(container_id: str, name: str):
+    """Keep the stored container_name in sync for stable matching."""
+    db = get_db()
+    db.execute(
+        "UPDATE container_custom SET container_name = ? WHERE id = ?",
+        (name, container_id),
+    )
+    db.commit()
+    db.close()

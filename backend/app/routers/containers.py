@@ -2,7 +2,12 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from ..services.docker_service import docker_client
-from ..services.custom_service import get_all_custom, get_container_custom
+from ..services.custom_service import (
+    get_all_custom,
+    get_container_custom,
+    migrate_container_id,
+    update_container_name,
+)
 
 router = APIRouter(prefix="/api/containers", tags=["containers"])
 
@@ -12,9 +17,30 @@ def list_containers(show_hidden: bool = Query(False)):
     containers = docker_client.list_containers(all=True)
     custom_map = get_all_custom()
 
+    # Build name index from stored custom rows (container_name may be stale)
+    custom_by_name = {}
+    for cust in custom_map.values():
+        if getattr(cust, "container_name", None):
+            custom_by_name[cust.container_name] = cust
+
     result = []
     for c in containers:
         custom = custom_map.get(c.id, None)
+
+        # If container was rebuilt (new ID), rebind config by stable name
+        if custom is None and c.name in custom_by_name:
+            old_custom = custom_by_name[c.name]
+            if migrate_container_id(old_custom.id, c.id, c.name):
+                custom = get_container_custom(c.id)
+                custom_map[c.id] = custom
+                custom_by_name[c.name] = custom
+        elif custom is not None:
+            # Keep name in sync for future rebuilds
+            if custom.container_name != c.name:
+                update_container_name(c.id, c.name)
+                custom = get_container_custom(c.id)
+                custom_map[c.id] = custom
+
         is_hidden = custom.is_hidden if custom else False
         if is_hidden and not show_hidden:
             continue
