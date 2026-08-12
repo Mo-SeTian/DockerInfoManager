@@ -9,9 +9,11 @@ interface Props {
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onSelectToggle?: (id: string) => void;
+  sortMode?: boolean;
+  onReorder?: (cid: string, dir: string) => void;
 }
 
-export default function GroupSection({ group, containers, onUpdate, selectionMode, selectedIds, onSelectToggle }: Props) {
+export default function GroupSection({ group, containers, onUpdate, selectionMode, selectedIds, onSelectToggle, sortMode, onReorder }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   if (containers.length === 0) return null;
@@ -52,6 +54,8 @@ export default function GroupSection({ group, containers, onUpdate, selectionMod
               selectionMode={selectionMode}
               selected={selectedIds?.has(c.id)}
               onSelectToggle={onSelectToggle}
+              sortMode={sortMode}
+              onReorder={onReorder}
             />
           ))}
         </div>

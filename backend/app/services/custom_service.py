@@ -267,3 +267,59 @@ def delete_group(group_id: int) -> bool:
     db.commit()
     db.close()
     return cur.rowcount > 0
+
+
+def reorder_container(container_id: str, direction: str) -> bool:
+    """Move a container up/down within its group by swapping sort_order."""
+    db = get_db()
+    row = db.execute(
+        "SELECT group_name, sort_order FROM container_custom WHERE id = ?",
+        (container_id,),
+    ).fetchone()
+    if not row:
+        db.close()
+        return False
+
+    group_name = row["group_name"] or ""
+    current_order = row["sort_order"] or 0
+
+    db.execute(
+        "INSERT OR IGNORE INTO container_custom (id, sort_order) VALUES (?, ?)",
+        (container_id, current_order),
+    )
+
+    if group_name:
+        peers = db.execute(
+            "SELECT id, sort_order FROM container_custom WHERE group_name = ? ORDER BY sort_order ASC, id ASC",
+            (group_name,),
+        ).fetchall()
+    else:
+        peers = db.execute(
+            "SELECT id, sort_order FROM container_custom WHERE (group_name IS NULL OR group_name = '') ORDER BY sort_order ASC, id ASC"
+        ).fetchall()
+
+    pos = next((i for i, p in enumerate(peers) if p["id"] == container_id), -1)
+    if pos == -1:
+        db.close()
+        return False
+
+    if direction == "up" and pos > 0:
+        peer = peers[pos - 1]
+    elif direction == "down" and pos < len(peers) - 1:
+        peer = peers[pos + 1]
+    else:
+        db.close()
+        return False
+
+    peer_order = peer["sort_order"] or 0
+    db.execute(
+        "UPDATE container_custom SET sort_order = ?, updated_at = datetime('now') WHERE id = ?",
+        (peer_order, container_id),
+    )
+    db.execute(
+        "UPDATE container_custom SET sort_order = ?, updated_at = datetime('now') WHERE id = ?",
+        (current_order, peer["id"]),
+    )
+    db.commit()
+    db.close()
+    return True

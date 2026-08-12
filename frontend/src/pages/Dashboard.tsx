@@ -8,7 +8,7 @@ import GroupSection from '../components/GroupSection';
 import GroupManager from '../components/GroupManager';
 import ContainerCard from '../components/ContainerCard';
 
-type SortKey = 'default' | 'name-asc' | 'name-desc' | 'running-first' | 'newest-first';
+type SortKey = 'default' | 'custom' | 'name-asc' | 'name-desc' | 'running-first' | 'newest-first';
 
 export default function Dashboard() {
   const { containers, stats, groups, loading, refresh } = useContainers();
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [showHidden, setShowHidden] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('default');
   const [batchMode, setBatchMode] = useState(false);
+  const [sortMode, setSortMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchError, setBatchError] = useState('');
 
@@ -61,6 +62,10 @@ export default function Dashboard() {
     await api.bulkHide([id], false);
     refresh();
   };
+  const handleReorder = async (cid: string, dir: string) => {
+    await api.reorderContainer(cid, dir);
+    refresh();
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-text-secondary">加载中...</div>;
 
@@ -92,11 +97,18 @@ export default function Dashboard() {
                 <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
                   className="min-h-[36px] px-2.5 rounded-lg text-xs bg-bg-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent touch-manipulation">
                   <option value="default">排序</option>
+                  <option value="custom">自定义</option>
                   <option value="name-asc">A-Z</option>
                   <option value="name-desc">Z-A</option>
                   <option value="running-first">运行中</option>
                   <option value="newest-first">最新</option>
                 </select>
+                {activeTab === 'dashboard' && (
+                  <button onClick={() => sortMode ? setSortMode(false) : setSortMode(true)}
+                    className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${sortMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                    {sortMode ? '✓排序' : '排序'}
+                  </button>
+                )}
                 {activeTab === 'dashboard' && (
                   <button onClick={() => batchMode ? clearBatch() : setBatchMode(true)}
                     className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
@@ -156,11 +168,13 @@ export default function Dashboard() {
             <>
               {(!activeGroup || activeGroup in grouped.grouped) && groupOrder.map(g => (
                 <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh}
-                  selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect} />
+                  selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect}
+                  sortMode={sortMode} onReorder={handleReorder} />
               ))}
               {(!activeGroup || activeGroup === 'ungrouped') && grouped.ungrouped.length > 0 && (
                 <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh}
-                  selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect} />
+                  selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect}
+                  sortMode={sortMode} onReorder={handleReorder} />
               )}
               {filtered.length === 0 && (
                 <div className="text-center py-12 text-text-secondary text-sm">没有找到匹配的容器</div>
@@ -228,6 +242,7 @@ function sortContainers(list: ContainerData[], key: SortKey): ContainerData[] {
     case 'name-desc': arr.sort((a, b) => (b.alias || b.name).localeCompare(a.alias || a.name)); break;
     case 'running-first': arr.sort((a, b) => (a.state === 'running' ? -1 : 1) - (b.state === 'running' ? -1 : 1)); break;
     case 'newest-first': arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')); break;
+    case 'custom': arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)); break;
     default: break;
   }
   return arr;

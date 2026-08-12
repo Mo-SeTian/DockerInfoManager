@@ -78,3 +78,8 @@ class BatchMoveRequest(BaseModel):
 class BatchHideRequest(BaseModel):
     container_ids: List[str]
     is_hidden: bool = True
+
+
+class ReorderRequest(BaseModel):
+    container_id: str
+    direction: str  # 'up' | 'down'

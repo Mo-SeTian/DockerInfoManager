@@ -9,6 +9,8 @@ interface Props {
   selected?: boolean;
   onSelectToggle?: (id: string) => void;
   selectionMode?: boolean;
+  sortMode?: boolean;
+  onReorder?: (cid: string, dir: string) => void;
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -21,7 +23,7 @@ const STATE_COLORS: Record<string, string> = {
 
 const DEFAULT_ICON = '📦';
 
-export default function ContainerCard({ container, onUpdate, selected, onSelectToggle, selectionMode }: Props) {
+export default function ContainerCard({ container, onUpdate, selected, onSelectToggle, selectionMode, sortMode, onReorder }: Props) {
   const [showDetail, setShowDetail] = useState(false);
 
   const dotColor = STATE_COLORS[container.state] || 'bg-gray-500';
@@ -167,6 +169,26 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
         {/* Hidden badge */}
         {container.is_hidden && (
           <span className="absolute top-2 right-2 text-xs text-yellow-500">隐藏</span>
+        )}
+
+        {/* Sort controls */}
+        {sortMode && onReorder && (
+          <div className="mt-3 pt-2 border-t border-border-subtle flex items-center justify-center gap-6">
+            <button
+              onClick={(e) => { e.stopPropagation(); onReorder(container.id, 'up'); }}
+              className="px-4 py-1.5 rounded-md border border-border-subtle text-text-secondary hover:text-accent hover:border-accent transition-colors touch-manipulation min-h-[36px]"
+              title="上移"
+            >
+              ↑
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onReorder(container.id, 'down'); }}
+              className="px-4 py-1.5 rounded-md border border-border-subtle text-text-secondary hover:text-accent hover:border-accent transition-colors touch-manipulation min-h-[36px]"
+              title="下移"
+            >
+              ↓
+            </button>
+          </div>
         )}
       </div>
 

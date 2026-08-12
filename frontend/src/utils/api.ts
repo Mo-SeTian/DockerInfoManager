@@ -72,3 +72,7 @@ export const bulkMove = (containerIds: string[], groupName: string | null) =>
   _post('/api/custom/bulk-move', { container_ids: containerIds, group_name: groupName });
 export const bulkHide = (containerIds: string[], hidden: boolean) =>
   _post('/api/custom/bulk-hide', { container_ids: containerIds, is_hidden: hidden });
+
+// Reorder
+export const reorderContainer = (containerId: string, direction: string) =>
+  _post('/api/custom/reorder', { container_id: containerId, direction });

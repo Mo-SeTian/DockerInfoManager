@@ -7,12 +7,14 @@ from ..services.custom_service import (
     delete_container_custom,
     bulk_move,
     set_hidden,
+    reorder_container,
 )
 from ..models.custom_models import (
     ContainerCustomUpdate,
     MoveContainerRequest,
     BatchMoveRequest,
     BatchHideRequest,
+    ReorderRequest,
 )
 
 router = APIRouter(prefix="/api/custom", tags=["custom"])
@@ -57,3 +59,11 @@ def bulk_hide_containers(data: BatchHideRequest):
     count = set_hidden(data.container_ids, data.is_hidden)
     action = "hidden" if data.is_hidden else "unhidden"
     return {"detail": f"{count} containers {action}"}
+
+
+@router.post("/reorder")
+def do_reorder(data: ReorderRequest):
+    ok = reorder_container(data.container_id, data.direction)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Cannot reorder — at edge or not found")
+    return {"detail": "Reordered"}
