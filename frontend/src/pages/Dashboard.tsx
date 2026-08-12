@@ -82,16 +82,15 @@ export default function Dashboard() {
         <header className="sticky top-0 z-30 border-b border-border-subtle" style={{ background: 'var(--bg-primary)' }}>
           <div className="px-5 py-3 space-y-2">
             {/* Row 1: Stats + actions */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <StatsBar stats={stats} />
-              <div className="flex-1 hidden sm:block" />
               <div className="flex flex-wrap items-center gap-1.5">
                 <button onClick={() => { setShowHidden(!showHidden); refresh(); }}
-                  className={`min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                  className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                   {showHidden ? '隐藏中' : '隐藏'}
                 </button>
                 <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
-                  className="min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs bg-bg-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent touch-manipulation">
+                  className="min-h-[36px] px-2.5 rounded-lg text-xs bg-bg-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent touch-manipulation">
                   <option value="default">排序</option>
                   <option value="name-asc">A-Z</option>
                   <option value="name-desc">Z-A</option>
@@ -100,7 +99,7 @@ export default function Dashboard() {
                 </select>
                 {activeTab === 'dashboard' && (
                   <button onClick={() => batchMode ? clearBatch() : setBatchMode(true)}
-                    className={`min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                    className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                     {batchMode ? `✓${selected.size}` : '批量'}
                   </button>
                 )}
@@ -131,13 +130,20 @@ export default function Dashboard() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === null ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                   全部
                 </button>
-                {groupOrder.map(g => (
-                  <button key={g.id} onClick={() => setActiveGroup(g.name)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === g.name ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
-                    <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: g.color }} />{g.name}
-                    <span className="ml-1 opacity-60">{grouped.grouped[g.name]?.length || 0}</span>
-                  </button>
-                ))}
+                {groupOrder.map(g => {
+                  const grpContainers = grouped.grouped[g.name] || [];
+                  const run = grpContainers.filter(c => c.state === 'running').length;
+                  const hid = grpContainers.filter(c => c.is_hidden).length;
+                  return (
+                    <button key={g.id} onClick={() => setActiveGroup(g.name)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === g.name ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                      <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: g.color }} />{g.name}
+                      <span className="ml-1 opacity-60">{grpContainers.length}</span>
+                      {run > 0 && <span className="ml-1 text-green-500">●{run}</span>}
+                      {hid > 0 && <span className="ml-1 text-orange-400">▽{hid}</span>}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

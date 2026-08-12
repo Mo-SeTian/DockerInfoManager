@@ -17,6 +17,7 @@ export default function GroupSection({ group, containers, onUpdate, selectionMod
   if (containers.length === 0) return null;
 
   const runningCount = containers.filter(c => c.state === 'running').length;
+  const hiddenCount = containers.filter(c => c.is_hidden).length;
   const name = group?.name || '未分组';
   const color = group?.color || '#6b7280';
 
@@ -29,7 +30,10 @@ export default function GroupSection({ group, containers, onUpdate, selectionMod
         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
         <span className="text-base font-semibold text-text-primary">{name}</span>
         <span className="text-sm text-text-secondary">{containers.length} 个容器</span>
-        <span className="text-xs text-text-secondary">({runningCount} 运行中)</span>
+        <span className="text-xs text-text-secondary">{runningCount} 运行中</span>
+        {hiddenCount > 0 && (
+          <span className="text-xs text-orange-400">{hiddenCount} 隐藏</span>
+        )}
         <svg
           className={`w-4 h-4 text-text-secondary transition-transform ml-auto ${collapsed ? '' : 'rotate-180'}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
