@@ -83,7 +83,7 @@ export default function Dashboard() {
             <StatsBar stats={stats} />
             <div className="flex-1" />
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowHidden(!showHidden)}
+              <button onClick={() => { setShowHidden(!showHidden); refresh(); }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                 {showHidden ? '隐藏已隐藏' : '显示隐藏'}
               </button>
