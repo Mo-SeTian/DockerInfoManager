@@ -1,11 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useContainers, ContainerData, GroupData } from '../hooks/useContainers';
 import * as api from '../utils/api';
-import ThemeToggle from '../components/ThemeToggle';
-import LogoutButton from '../components/LogoutButton';
+import Sidebar from '../components/Sidebar';
 import StatsBar from '../components/StatsBar';
 import SearchBar from '../components/SearchBar';
-import GroupTabs from '../components/GroupTabs';
 import GroupSection from '../components/GroupSection';
 import GroupManager from '../components/GroupManager';
 import ContainerCard from '../components/ContainerCard';
@@ -14,9 +12,9 @@ type SortKey = 'default' | 'name-asc' | 'name-desc' | 'running-first' | 'newest-
 
 export default function Dashboard() {
   const { containers, stats, groups, loading, refresh } = useContainers();
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
-  const [showGroupManager, setShowGroupManager] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('default');
   const [batchMode, setBatchMode] = useState(false);
@@ -30,59 +28,63 @@ export default function Dashboard() {
     if (activeGroup !== null) result = result.filter(c => c.group_name === activeGroup);
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        (c.alias && c.alias.toLowerCase().includes(q)) ||
-        c.image.toLowerCase().includes(q)
-      );
+      result = result.filter(c => c.name.toLowerCase().includes(q) || (c.alias && c.alias.toLowerCase().includes(q)) || c.image.toLowerCase().includes(q));
     }
     return sortContainers(result, sortKey);
   }, [containers, showHidden, activeGroup, search, sortKey]);
 
-  // ---- Group grouping ----
+  // ---- Grouped for grid ----
   const grouped = useMemo(() => {
     const map: Record<string, ContainerData[]> = {};
-    const ungrouped: ContainerData[] = [];
+    const ug: ContainerData[] = [];
     for (const c of filtered) {
-      if (c.group_name) {
-        if (!map[c.group_name]) map[c.group_name] = [];
-        map[c.group_name].push(c);
-      } else {
-        ungrouped.push(c);
-      }
+      if (c.group_name) { if (!map[c.group_name]) map[c.group_name] = []; map[c.group_name].push(c); }
+      else ug.push(c);
     }
-    return { grouped: map, ungrouped };
+    return { grouped: map, ungrouped: ug };
   }, [filtered]);
 
+  // Hidden containers (for hidden management tab)
+  const hiddenContainers = useMemo(() => containers.filter(c => c.is_hidden), [containers]);
+
   const toggleSelect = (id: string) => {
-    setSelected(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    setSelected(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
   const clearBatch = () => { setBatchMode(false); setSelected(new Set()); setBatchError(''); };
-  const doBulkMove = async (groupName: string | null) => {
-    try { await api.bulkMove(Array.from(selected), groupName); refresh(); clearBatch(); }
-    catch (e: any) { setBatchError(e.message); }
+  const doBulkMove = async (name: string | null) => {
+    try { await api.bulkMove([...selected], name); refresh(); clearBatch(); } catch (e: any) { setBatchError(e.message); }
   };
   const doBulkHide = async (hidden: boolean) => {
-    try { await api.bulkHide(Array.from(selected), hidden); refresh(); clearBatch(); }
-    catch (e: any) { setBatchError(e.message); }
+    try { await api.bulkHide([...selected], hidden); refresh(); clearBatch(); } catch (e: any) { setBatchError(e.message); }
+  };
+  const doUnhide = async (id: string) => {
+    await api.bulkHide([id], false);
+    refresh();
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-text-secondary">...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-text-secondary">加载中...</div>;
 
   const groupOrder = groups.filter(g => g.name in grouped.grouped);
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
-      <header className="sticky top-0 z-40 border-b border-border-subtle" style={{ background: 'var(--bg-primary)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl font-bold flex items-center gap-2 text-text-primary"><span>🦐</span> DockerInfoManager</h1>
-            <div className="flex items-center gap-3"><ThemeToggle /><LogoutButton /></div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatsBar stats={stats} />
-            <div className="flex-1" />
-            <div className="flex items-center gap-2">
+    <div className="flex min-h-screen" style={{ background: 'var(--bg-primary)' }}>
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={tab => { setActiveTab(tab); clearBatch(); }}
+        groups={groups}
+        hiddenCount={hiddenContainers.length}
+        imageCount={stats?.total_images}
+      />
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        {/* Top toolbar */}
+        <header className="sticky top-0 z-30 border-b border-border-subtle" style={{ background: 'var(--bg-primary)' }}>
+          <div className="px-5 py-3 space-y-2">
+            {/* Row 1: Stats + actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <StatsBar stats={stats} />
+              <div className="flex-1" />
               <button onClick={() => { setShowHidden(!showHidden); refresh(); }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                 {showHidden ? '隐藏已隐藏' : '显示隐藏'}
@@ -95,46 +97,116 @@ export default function Dashboard() {
                 <option value="running-first">运行中优先</option>
                 <option value="newest-first">最新创建</option>
               </select>
-              <button onClick={() => { if (batchMode) clearBatch(); else setBatchMode(true); }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
-                {batchMode ? `已选 ${selected.size}` : '批量选择'}
-              </button>
+              {activeTab === 'dashboard' && (
+                <button onClick={() => batchMode ? clearBatch() : setBatchMode(true)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                  {batchMode ? `已选 ${selected.size}` : '批量选择'}
+                </button>
+              )}
             </div>
+
+            {/* Batch bar */}
+            {batchMode && selected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-bg-card border border-border-subtle">
+                <span className="text-xs text-text-secondary">已选 {selected.size} 个:</span>
+                <BatchGroupDropdown groups={groups} onMove={doBulkMove} />
+                <button onClick={() => doBulkHide(true)} className="px-2 py-1 text-xs rounded bg-bg-primary border border-border-subtle text-text-primary hover:border-red-400">隐藏</button>
+                <button onClick={() => doBulkHide(false)} className="px-2 py-1 text-xs rounded bg-bg-primary border border-border-subtle text-text-primary hover:border-green-400">取消隐藏</button>
+                <button onClick={clearBatch} className="px-2 py-1 text-xs rounded text-text-secondary hover:text-text-primary ml-auto">取消</button>
+                {batchError && <span className="text-xs text-red-400">{batchError}</span>}
+              </div>
+            )}
+
+            {/* Row 2: Search */}
+            <div className="flex gap-2">
+              <SearchBar value={search} onChange={setSearch} />
+            </div>
+
+            {/* Row 3: Group tabs (only on dashboard) */}
+            {activeTab === 'dashboard' && groups.length > 0 && (
+              <div className="flex gap-2 flex-wrap items-center overflow-x-auto pb-1">
+                <button onClick={() => setActiveGroup(null)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === null ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                  全部
+                </button>
+                {groupOrder.map(g => (
+                  <button key={g.id} onClick={() => setActiveGroup(g.name)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === g.name ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                    <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: g.color }} />{g.name}
+                    <span className="ml-1 opacity-60">{grouped.grouped[g.name]?.length || 0}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          {batchMode && selected.size > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 p-2 rounded-lg bg-bg-card border border-border-subtle">
-              <span className="text-xs text-text-secondary">已选 {selected.size} 个:</span>
-              <BatchGroupDropdown groups={groups} onMove={doBulkMove} />
-              <button onClick={() => doBulkHide(true)} className="px-2 py-1 text-xs rounded bg-bg-primary border border-border-subtle text-text-primary hover:border-red-400">隐藏</button>
-              <button onClick={() => doBulkHide(false)} className="px-2 py-1 text-xs rounded bg-bg-primary border border-border-subtle text-text-primary hover:border-green-400">取消隐藏</button>
-              <button onClick={clearBatch} className="px-2 py-1 text-xs rounded text-text-secondary hover:text-text-primary ml-auto">取消</button>
-              {batchError && <span className="text-xs text-red-400">{batchError}</span>}
+        </header>
+
+        {/* Content area */}
+        <main className="px-5 py-4">
+          {/* ---- Dashboard tab: container grid ---- */}
+          {activeTab === 'dashboard' && (
+            <>
+              {(!activeGroup || activeGroup in grouped.grouped) && groupOrder.map(g => (
+                <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh} />
+              ))}
+              {(!activeGroup || activeGroup === 'ungrouped') && grouped.ungrouped.length > 0 && (
+                <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh} />
+              )}
+              {filtered.length === 0 && (
+                <div className="text-center py-12 text-text-secondary text-sm">没有找到匹配的容器</div>
+              )}
+            </>
+          )}
+
+          {/* ---- Groups tab: group manager ---- */}
+          {activeTab === 'groups' && (
+            <GroupManager onClose={() => setActiveTab('dashboard')} onRefresh={refresh} initialGroups={groups} />
+          )}
+
+          {/* ---- Hidden tab: hidden containers list ---- */}
+          {activeTab === 'hidden' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-text-primary">隐藏的容器 ({hiddenContainers.length})</h2>
+                {hiddenContainers.length > 0 && (
+                  <button onClick={async () => { const ids = hiddenContainers.map(c => c.id); await api.bulkHide(ids, false); refresh(); }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent text-white hover:bg-accent-hover transition-colors">
+                    全部取消隐藏
+                  </button>
+                )}
+              </div>
+              {hiddenContainers.length === 0 ? (
+                <div className="text-center py-12 text-text-secondary text-sm">没有隐藏的容器</div>
+              ) : (
+                <div className="space-y-2">
+                  {hiddenContainers.map(c => (
+                    <div key={c.id} className="flex items-center gap-3 bg-bg-card border border-border-subtle rounded-lg p-3 opacity-70 hover:opacity-100 transition-opacity">
+                      <div className="text-lg">{c.icon || '📦'}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-text-primary truncate">{c.alias || c.name}</div>
+                        <div className="text-xs text-text-secondary truncate">{c.image}</div>
+                      </div>
+                      <span className={`w-2 h-2 rounded-full ${c.state === 'running' ? 'bg-green-500' : c.state === 'exited' ? 'bg-red-500' : 'bg-gray-500'}`} />
+                      <button onClick={() => doUnhide(c.id)}
+                        className="px-3 py-1 rounded-lg text-xs font-medium border border-border-subtle text-text-secondary hover:text-green-400 hover:border-green-400 transition-colors">
+                        取消隐藏
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <SearchBar value={search} onChange={setSearch} />
-          </div>
-          <div className="mt-2">
-            <GroupTabs groups={groupOrder} activeGroup={activeGroup} onSelect={setActiveGroup} onManage={() => setShowGroupManager(true)} />
-          </div>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto px-4 py-4">
-        {(!activeGroup || activeGroup in grouped.grouped) &&
-          groupOrder.map(g => (
-            <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh} />
-          ))
-        }
-        {(!activeGroup || activeGroup === 'ungrouped') && grouped.ungrouped.length > 0 && (
-          <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh} />
-        )}
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-text-secondary text-sm">没有找到匹配的容器</div>
-        )}
-      </main>
-      {showGroupManager && (
-        <GroupManager onClose={() => setShowGroupManager(false)} onRefresh={refresh} initialGroups={groups} />
-      )}
+
+          {/* ---- Images tab: placeholder ---- */}
+          {activeTab === 'images' && (
+            <div>
+              <h2 className="text-base font-bold text-text-primary mb-4">镜像 ({stats?.total_images || 0})</h2>
+              <div className="text-center py-12 text-text-secondary text-sm">镜像列表功能开发中</div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
