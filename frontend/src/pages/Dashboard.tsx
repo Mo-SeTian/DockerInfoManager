@@ -45,6 +45,19 @@ export default function Dashboard() {
   // Hidden containers (for hidden management tab)
   const hiddenContainers = useMemo(() => containers.filter(c => c.is_hidden), [containers]);
 
+  // ---- Per-group full stats (always based on ALL containers, independent of showHidden/search) ----
+  const groupStats = useMemo(() => {
+    const map: Record<string, { total: number; running: number; hidden: number }> = {};
+    for (const c of containers) {
+      const key = c.group_name || '__ungrouped__';
+      if (!map[key]) map[key] = { total: 0, running: 0, hidden: 0 };
+      map[key].total++;
+      if (c.state === 'running') map[key].running++;
+      if (c.is_hidden) map[key].hidden++;
+    }
+    return map;
+  }, [containers]);
+
   const toggleSelect = (id: string) => {
     setSelected(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
@@ -146,16 +159,14 @@ export default function Dashboard() {
                   全部
                 </button>
                 {groupOrder.map(g => {
-                  const grpContainers = grouped.grouped[g.name] || [];
-                  const run = grpContainers.filter(c => c.state === 'running').length;
-                  const hid = grpContainers.filter(c => c.is_hidden).length;
+                  const s = groupStats[g.name] || { total: 0, running: 0, hidden: 0 };
                   return (
                     <button key={g.id} onClick={() => setActiveGroup(g.name)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === g.name ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                       <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: g.color }} />{g.name}
-                      <span className="ml-1 opacity-60">{grpContainers.length}</span>
-                      <span className="ml-1 text-green-500">●{run}</span>
-                      <span className="ml-1 text-orange-400">▽{hid}</span>
+                      <span className="ml-1 opacity-60">{s.total}</span>
+                      <span className="ml-1 text-green-500">●{s.running}</span>
+                      <span className="ml-1 text-orange-400">▽{s.hidden}</span>
                     </button>
                   );
                 })}
@@ -171,11 +182,13 @@ export default function Dashboard() {
             <>
               {(!activeGroup || activeGroup in grouped.grouped) && groupOrder.map(g => (
                 <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh}
+                  stats={groupStats[g.name]}
                   selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect}
                   editMode={editMode} onDropInGroup={handleDropInGroup} onDropBeforeCard={handleDropBeforeCard} />
               ))}
               {(!activeGroup || activeGroup === 'ungrouped') && (
                 <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh}
+                  stats={groupStats['__ungrouped__']}
                   selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect}
                   editMode={editMode} onDropInGroup={handleDropInGroup} onDropBeforeCard={handleDropBeforeCard} />
               )}

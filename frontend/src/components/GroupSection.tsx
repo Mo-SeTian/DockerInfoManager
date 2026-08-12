@@ -6,6 +6,7 @@ interface Props {
   group: GroupData | null;
   containers: ContainerData[];
   onUpdate: () => void;
+  stats?: { total: number; running: number; hidden: number };
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onSelectToggle?: (id: string) => void;
@@ -15,18 +16,20 @@ interface Props {
 }
 
 export default function GroupSection({
-  group, containers, onUpdate, selectionMode, selectedIds, onSelectToggle, editMode, onDropInGroup, onDropBeforeCard,
+  group, containers, onUpdate, stats, selectionMode, selectedIds, onSelectToggle, editMode, onDropInGroup, onDropBeforeCard,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [dropHighlight, setDropHighlight] = useState(false);
 
-  if (containers.length === 0 && !editMode) return null;
-
-  const runningCount = containers.filter(c => c.state === 'running').length;
-  const hiddenCount = containers.filter(c => c.is_hidden).length;
+  // 统计基于全量数据（stats），卡片基于过滤后的 containers
+  const total = stats?.total ?? containers.length;
+  const runningCount = stats?.running ?? containers.filter(c => c.state === 'running').length;
+  const hiddenCount = stats?.hidden ?? containers.filter(c => c.is_hidden).length;
   const name = group?.name || '未分组';
   const color = group?.color || '#6b7280';
   const groupName = group?.name ?? null;
+
+  if (!editMode && total === 0) return null;
 
   const handleDragOver = (e: React.DragEvent) => {
     if (!editMode) return;
@@ -56,7 +59,7 @@ export default function GroupSection({
       >
         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
         <span className="text-base font-semibold text-text-primary">{name}</span>
-        <span className="text-sm text-text-secondary">{containers.length} 个容器</span>
+        <span className="text-sm text-text-secondary">{total} 个容器</span>
         <span className="text-xs text-text-secondary">{runningCount} 运行中</span>
         <span className="text-xs text-orange-400">{hiddenCount} 隐藏</span>
         <svg
