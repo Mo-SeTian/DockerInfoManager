@@ -22,8 +22,10 @@ type PanelState = 'expanded' | 'icons' | 'hidden';
 
 export default function Sidebar({ activeTab, onTabChange, groups, hiddenCount, imageCount }: Props) {
   const [panelState, setPanelState] = useState<PanelState>(() => {
+    // 小屏默认隐藏，大屏默认展开
     const v = localStorage.getItem('sidebar_state');
-    return (v === 'icons' || v === 'hidden') ? v : 'expanded';
+    if (v === 'icons' || v === 'hidden') return v;
+    return window.innerWidth < 768 ? 'hidden' : 'expanded';
   });
 
   useEffect(() => {
@@ -132,7 +134,7 @@ export default function Sidebar({ activeTab, onTabChange, groups, hiddenCount, i
         {isIcons && (
           <button
             onClick={() => setPanelState('hidden')}
-            className="w-full flex justify-center py-1 text-text-secondary hover:text-accent transition-colors"
+            className="w-full flex justify-center py-2 text-text-secondary hover:text-accent transition-colors min-h-[44px]"
             title="完全隐藏"
           >
             ◀

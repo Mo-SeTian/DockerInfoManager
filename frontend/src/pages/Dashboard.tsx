@@ -64,7 +64,7 @@ export default function Dashboard() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-text-secondary">加载中...</div>;
 
-  const groupOrder = groups.filter(g => g.name in grouped.grouped);
+  const groupOrder = groups;
 
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--bg-primary)' }}>
@@ -84,25 +84,27 @@ export default function Dashboard() {
             {/* Row 1: Stats + actions */}
             <div className="flex flex-wrap items-center gap-2">
               <StatsBar stats={stats} />
-              <div className="flex-1" />
-              <button onClick={() => { setShowHidden(!showHidden); refresh(); }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
-                {showHidden ? '隐藏已隐藏' : '显示隐藏'}
-              </button>
-              <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
-                className="px-2.5 py-1 rounded-lg text-xs bg-bg-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent">
-                <option value="default">默认排序</option>
-                <option value="name-asc">A - Z</option>
-                <option value="name-desc">Z - A</option>
-                <option value="running-first">运行中优先</option>
-                <option value="newest-first">最新创建</option>
-              </select>
-              {activeTab === 'dashboard' && (
-                <button onClick={() => batchMode ? clearBatch() : setBatchMode(true)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
-                  {batchMode ? `已选 ${selected.size}` : '批量选择'}
+              <div className="flex-1 hidden sm:block" />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button onClick={() => { setShowHidden(!showHidden); refresh(); }}
+                  className={`min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                  {showHidden ? '隐藏中' : '隐藏'}
                 </button>
-              )}
+                <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
+                  className="min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs bg-bg-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent touch-manipulation">
+                  <option value="default">排序</option>
+                  <option value="name-asc">A-Z</option>
+                  <option value="name-desc">Z-A</option>
+                  <option value="running-first">运行中</option>
+                  <option value="newest-first">最新</option>
+                </select>
+                {activeTab === 'dashboard' && (
+                  <button onClick={() => batchMode ? clearBatch() : setBatchMode(true)}
+                    className={`min-w-[44px] px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                    {batchMode ? `✓${selected.size}` : '批量'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Batch bar */}
