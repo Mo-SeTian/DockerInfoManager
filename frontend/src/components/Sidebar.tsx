@@ -78,16 +78,11 @@ export default function Sidebar({ activeTab, onTabChange, groups, hiddenCount, i
               {!collapsed && item.id === 'groups' && groups.length > 0 && (
                 <span className="text-xs text-text-secondary bg-bg-card px-1.5 py-0.5 rounded">{groups.length}</span>
               )}
-              {!collapsed && item.id === 'hidden' && hiddenCount > 0 && (
-                <span className="text-xs text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded">{hiddenCount}</span>
-              )}
+              {/* Hidden count badge removed per user request */}
               {!collapsed && item.id === 'images' && imageCount !== undefined && (
                 <span className="text-xs text-text-secondary bg-bg-card px-1.5 py-0.5 rounded">{imageCount}</span>
               )}
-              {/* Collapsed: dot badge on active + hidden */}
-              {collapsed && item.id === 'hidden' && hiddenCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[9px] flex items-center justify-center rounded-full bg-orange-500 text-white">{hiddenCount < 10 ? hiddenCount : '!'}</span>
-              )}
+              {/* Collapsed hidden dot badge removed */}
             </button>
           );
         })}
