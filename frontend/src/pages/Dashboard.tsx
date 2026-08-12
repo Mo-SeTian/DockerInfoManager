@@ -147,10 +147,12 @@ export default function Dashboard() {
           {activeTab === 'dashboard' && (
             <>
               {(!activeGroup || activeGroup in grouped.grouped) && groupOrder.map(g => (
-                <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh} />
+                <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh}
+                  selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect} />
               ))}
               {(!activeGroup || activeGroup === 'ungrouped') && grouped.ungrouped.length > 0 && (
-                <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh} />
+                <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh}
+                  selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect} />
               )}
               {filtered.length === 0 && (
                 <div className="text-center py-12 text-text-secondary text-sm">没有找到匹配的容器</div>
