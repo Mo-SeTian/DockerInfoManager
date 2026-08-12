@@ -76,3 +76,7 @@ export const bulkHide = (containerIds: string[], hidden: boolean) =>
 // Reorder
 export const reorderContainer = (containerId: string, direction: string) =>
   _post('/api/custom/reorder', { container_id: containerId, direction });
+
+// Drag-place: move to group at position
+export const placeContainer = (containerId: string, groupName: string | null, beforeId: string | null) =>
+  _post('/api/custom/place', { container_id: containerId, group_name: groupName, before_id: beforeId });

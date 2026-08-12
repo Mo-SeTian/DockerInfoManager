@@ -83,3 +83,9 @@ class BatchHideRequest(BaseModel):
 class ReorderRequest(BaseModel):
     container_id: str
     direction: str  # 'up' | 'down'
+
+
+class PlaceRequest(BaseModel):
+    container_id: str
+    group_name: Optional[str] = None  # target group (None = ungrouped)
+    before_id: Optional[str] = None   # insert before this container (None = append to end)

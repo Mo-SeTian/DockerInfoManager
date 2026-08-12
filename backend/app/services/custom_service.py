@@ -323,3 +323,76 @@ def reorder_container(container_id: str, direction: str) -> bool:
     db.commit()
     db.close()
     return True
+
+
+def place_container(
+    container_id: str, group_name: Optional[str], before_id: Optional[str]
+) -> bool:
+    """Move a container to a target group, inserting at before_id (or end).
+
+    Renumbers sort_order for the target group and, if the group changed,
+    for the old group as well. Pure metadata — never touches Docker.
+    """
+    db = get_db()
+    target_group = group_name or ""
+
+    row = db.execute(
+        "SELECT group_name FROM container_custom WHERE id = ?", (container_id,)
+    ).fetchone()
+    old_group = row["group_name"] if row else None
+
+    # Ensure row exists
+    db.execute(
+        "INSERT OR IGNORE INTO container_custom (id) VALUES (?)", (container_id,)
+    )
+
+    # Target group ordered ids (excluding the moved container)
+    if target_group:
+        peers = db.execute(
+            "SELECT id FROM container_custom WHERE group_name = ? AND id != ? ORDER BY sort_order ASC, id ASC",
+            (target_group, container_id),
+        ).fetchall()
+    else:
+        peers = db.execute(
+            "SELECT id FROM container_custom WHERE (group_name IS NULL OR group_name = '') AND id != ? ORDER BY sort_order ASC, id ASC",
+            (container_id,),
+        ).fetchall()
+
+    peer_ids = [p["id"] for p in peers]
+    if before_id and before_id in peer_ids:
+        idx = peer_ids.index(before_id)
+        peer_ids.insert(idx, container_id)
+    else:
+        peer_ids.append(container_id)
+
+    # Move + renumber target group
+    db.execute(
+        "UPDATE container_custom SET group_name = ?, updated_at = datetime('now') WHERE id = ?",
+        (target_group or None, container_id),
+    )
+    for i, cid in enumerate(peer_ids):
+        db.execute(
+            "UPDATE container_custom SET sort_order = ? WHERE id = ?", (i, cid)
+        )
+
+    # Renumber old group if the container changed groups
+    old_group = old_group or ""
+    if old_group != target_group:
+        if old_group:
+            old_peers = db.execute(
+                "SELECT id FROM container_custom WHERE group_name = ? ORDER BY sort_order ASC, id ASC",
+                (old_group,),
+            ).fetchall()
+        else:
+            old_peers = db.execute(
+                "SELECT id FROM container_custom WHERE (group_name IS NULL OR group_name = '') ORDER BY sort_order ASC, id ASC"
+            ).fetchall()
+        for i, p in enumerate(old_peers):
+            db.execute(
+                "UPDATE container_custom SET sort_order = ? WHERE id = ?",
+                (i, p["id"]),
+            )
+
+    db.commit()
+    db.close()
+    return True

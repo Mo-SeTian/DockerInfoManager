@@ -8,6 +8,7 @@ from ..services.custom_service import (
     bulk_move,
     set_hidden,
     reorder_container,
+    place_container,
 )
 from ..models.custom_models import (
     ContainerCustomUpdate,
@@ -15,6 +16,7 @@ from ..models.custom_models import (
     BatchMoveRequest,
     BatchHideRequest,
     ReorderRequest,
+    PlaceRequest,
 )
 
 router = APIRouter(prefix="/api/custom", tags=["custom"])
@@ -67,3 +69,9 @@ def do_reorder(data: ReorderRequest):
     if not ok:
         raise HTTPException(status_code=400, detail="Cannot reorder — at edge or not found")
     return {"detail": "Reordered"}
+
+
+@router.post("/place")
+def do_place(data: PlaceRequest):
+    place_container(data.container_id, data.group_name, data.before_id)
+    return {"detail": "Placed"}

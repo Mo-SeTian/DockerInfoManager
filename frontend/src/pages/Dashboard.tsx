@@ -8,31 +8,28 @@ import GroupSection from '../components/GroupSection';
 import GroupManager from '../components/GroupManager';
 import ContainerCard from '../components/ContainerCard';
 
-type SortKey = 'default' | 'custom' | 'name-asc' | 'name-desc' | 'running-first' | 'newest-first';
-
 export default function Dashboard() {
   const { containers, stats, groups, loading, refresh } = useContainers();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('default');
   const [batchMode, setBatchMode] = useState(false);
-  const [sortMode, setSortMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchError, setBatchError] = useState('');
 
-  // ---- Filter ----
+  // ---- Filter (containers always ordered by sort_order so manual order persists) ----
   const filtered = useMemo(() => {
-    let result = containers;
+    let result = [...containers].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     if (!showHidden) result = result.filter(c => !c.is_hidden);
     if (activeGroup !== null) result = result.filter(c => c.group_name === activeGroup);
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(c => c.name.toLowerCase().includes(q) || (c.alias && c.alias.toLowerCase().includes(q)) || c.image.toLowerCase().includes(q));
     }
-    return sortContainers(result, sortKey);
-  }, [containers, showHidden, activeGroup, search, sortKey]);
+    return result;
+  }, [containers, showHidden, activeGroup, search]);
 
   // ---- Grouped for grid ----
   const grouped = useMemo(() => {
@@ -62,8 +59,16 @@ export default function Dashboard() {
     await api.bulkHide([id], false);
     refresh();
   };
-  const handleReorder = async (cid: string, dir: string) => {
-    await api.reorderContainer(cid, dir);
+
+  // Drag & drop: dropped on a card = insert before it; dropped on group empty area = append
+  const handleDropBeforeCard = async (dragId: string, targetId: string, targetGroup: string | null) => {
+    if (!dragId) return;
+    await api.placeContainer(dragId, targetGroup, targetId);
+    refresh();
+  };
+  const handleDropInGroup = async (dragId: string, targetGroup: string | null) => {
+    if (!dragId) return;
+    await api.placeContainer(dragId, targetGroup, null);
     refresh();
   };
 
@@ -75,7 +80,7 @@ export default function Dashboard() {
     <div className="flex min-h-screen" style={{ background: 'var(--bg-primary)' }}>
       <Sidebar
         activeTab={activeTab}
-        onTabChange={tab => { setActiveTab(tab); clearBatch(); }}
+        onTabChange={tab => { setActiveTab(tab); clearBatch(); setEditMode(false); }}
         groups={groups}
         hiddenCount={hiddenContainers.length}
         imageCount={stats?.total_images}
@@ -85,38 +90,36 @@ export default function Dashboard() {
       <div className="flex-1 min-w-0">
         {/* Top toolbar */}
         <header className="sticky top-0 z-30 border-b border-border-subtle" style={{ background: 'var(--bg-primary)' }}>
-          <div className="px-5 py-3 space-y-2">
+          <div className="px-4 py-2.5 space-y-2">
             {/* Row 1: Stats + actions */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
               <StatsBar stats={stats} />
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
                 <button onClick={() => { setShowHidden(!showHidden); refresh(); }}
-                  className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                  className={`min-w-[44px] min-h-[38px] px-2.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${showHidden ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                   {showHidden ? '隐藏中' : '隐藏'}
                 </button>
-                <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}
-                  className="min-h-[36px] px-2.5 rounded-lg text-xs bg-bg-card border border-border-subtle text-text-primary focus:outline-none focus:border-accent touch-manipulation">
-                  <option value="default">排序</option>
-                  <option value="custom">自定义</option>
-                  <option value="name-asc">A-Z</option>
-                  <option value="name-desc">Z-A</option>
-                  <option value="running-first">运行中</option>
-                  <option value="newest-first">最新</option>
-                </select>
                 {activeTab === 'dashboard' && (
-                  <button onClick={() => sortMode ? setSortMode(false) : setSortMode(true)}
-                    className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${sortMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
-                    {sortMode ? '✓排序' : '排序'}
+                  <button onClick={() => setEditMode(e => !e)}
+                    className={`min-w-[44px] min-h-[38px] px-2.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${editMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                    {editMode ? '✓编辑' : '编辑'}
                   </button>
                 )}
                 {activeTab === 'dashboard' && (
                   <button onClick={() => batchMode ? clearBatch() : setBatchMode(true)}
-                    className={`min-w-[44px] px-2.5 py-2 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
+                    className={`min-w-[44px] min-h-[38px] px-2.5 rounded-lg text-xs font-medium border transition-colors touch-manipulation ${batchMode ? 'bg-accent text-white border-accent' : 'border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                     {batchMode ? `✓${selected.size}` : '批量'}
                   </button>
                 )}
               </div>
             </div>
+
+            {/* Edit-mode hint bar */}
+            {editMode && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-xs text-accent">
+                ✋ 拖拽容器卡片调整顺序；拖到分组区域可跨组移动
+              </div>
+            )}
 
             {/* Batch bar */}
             {batchMode && selected.size > 0 && (
@@ -151,8 +154,8 @@ export default function Dashboard() {
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${activeGroup === g.name ? 'bg-accent text-white' : 'bg-bg-card border border-border-subtle text-text-secondary hover:text-text-primary'}`}>
                       <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: g.color }} />{g.name}
                       <span className="ml-1 opacity-60">{grpContainers.length}</span>
-                      {run > 0 && <span className="ml-1 text-green-500">●{run}</span>}
-                      {hid > 0 && <span className="ml-1 text-orange-400">▽{hid}</span>}
+                      <span className="ml-1 text-green-500">●{run}</span>
+                      <span className="ml-1 text-orange-400">▽{hid}</span>
                     </button>
                   );
                 })}
@@ -162,22 +165,25 @@ export default function Dashboard() {
         </header>
 
         {/* Content area */}
-        <main className="px-5 py-4">
+        <main className="px-4 py-4">
           {/* ---- Dashboard tab: container grid ---- */}
           {activeTab === 'dashboard' && (
             <>
               {(!activeGroup || activeGroup in grouped.grouped) && groupOrder.map(g => (
                 <GroupSection key={g.id} group={g} containers={grouped.grouped[g.name] || []} onUpdate={refresh}
                   selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect}
-                  sortMode={sortMode} onReorder={handleReorder} />
+                  editMode={editMode} onDropInGroup={handleDropInGroup} onDropBeforeCard={handleDropBeforeCard} />
               ))}
-              {(!activeGroup || activeGroup === 'ungrouped') && grouped.ungrouped.length > 0 && (
+              {(!activeGroup || activeGroup === 'ungrouped') && (
                 <GroupSection group={null} containers={grouped.ungrouped} onUpdate={refresh}
                   selectionMode={batchMode} selectedIds={selected} onSelectToggle={toggleSelect}
-                  sortMode={sortMode} onReorder={handleReorder} />
+                  editMode={editMode} onDropInGroup={handleDropInGroup} onDropBeforeCard={handleDropBeforeCard} />
               )}
-              {filtered.length === 0 && (
+              {filtered.length === 0 && !editMode && (
                 <div className="text-center py-12 text-text-secondary text-sm">没有找到匹配的容器</div>
+              )}
+              {editMode && filtered.length === 0 && groups.length === 0 && (
+                <div className="text-center py-12 text-text-secondary text-sm">暂无可拖拽的容器</div>
               )}
             </>
           )}
@@ -233,19 +239,6 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
-
-function sortContainers(list: ContainerData[], key: SortKey): ContainerData[] {
-  const arr = [...list];
-  switch (key) {
-    case 'name-asc': arr.sort((a, b) => (a.alias || a.name).localeCompare(b.alias || b.name)); break;
-    case 'name-desc': arr.sort((a, b) => (b.alias || b.name).localeCompare(a.alias || a.name)); break;
-    case 'running-first': arr.sort((a, b) => (a.state === 'running' ? -1 : 1) - (b.state === 'running' ? -1 : 1)); break;
-    case 'newest-first': arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')); break;
-    case 'custom': arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)); break;
-    default: break;
-  }
-  return arr;
 }
 
 function BatchGroupDropdown({ groups, onMove }: { groups: GroupData[]; onMove: (name: string | null) => void }) {

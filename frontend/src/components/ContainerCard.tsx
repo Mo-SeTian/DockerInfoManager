@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { ContainerData } from '../hooks/useContainers';
 import ContainerDetail from './ContainerDetail';
-import * as api from '../utils/api';
 
 interface Props {
   container: ContainerData;
@@ -9,8 +8,9 @@ interface Props {
   selected?: boolean;
   onSelectToggle?: (id: string) => void;
   selectionMode?: boolean;
-  sortMode?: boolean;
-  onReorder?: (cid: string, dir: string) => void;
+  editMode?: boolean;
+  groupName?: string | null;
+  onDropCard?: (dragId: string, targetId: string, targetGroup: string | null) => void;
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -23,7 +23,9 @@ const STATE_COLORS: Record<string, string> = {
 
 const DEFAULT_ICON = '📦';
 
-export default function ContainerCard({ container, onUpdate, selected, onSelectToggle, selectionMode, sortMode, onReorder }: Props) {
+export default function ContainerCard({
+  container, onUpdate, selected, onSelectToggle, selectionMode, editMode, groupName, onDropCard,
+}: Props) {
   const [showDetail, setShowDetail] = useState(false);
 
   const dotColor = STATE_COLORS[container.state] || 'bg-gray-500';
@@ -45,23 +47,16 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
   };
 
   const getJumpUrl = (): string | null => {
-    // Priority: explicit URLs > port-based URL
     const pref = container.url_preference || 'auto';
-
     if (container.private_url && container.public_url) {
-      // Auto: try private first (same network), fallback public
       if (pref === 'private') return container.private_url;
       if (pref === 'public') return container.public_url;
-      // auto — return private, browser will try it
       return container.private_url;
     }
     if (container.private_url && pref !== 'public') return container.private_url;
     if (container.public_url && pref !== 'private') return container.public_url;
 
-    // Fall back to port-based URL
-    const primaryPort = container.ports.find(
-      p => p.host_port && p.protocol === 'tcp'
-    );
+    const primaryPort = container.ports.find(p => p.host_port && p.protocol === 'tcp');
     if (!primaryPort?.host_port) return null;
     const protocol = container.jump_protocol || 'http';
     return `${protocol}://localhost:${primaryPort.host_port}`;
@@ -73,23 +68,32 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
     if (url) window.open(url, '_blank');
   };
 
-  const handleHide = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await api.bulkHide([container.id], true);
-    onUpdate();
-  };
-
-  const handleUnhide = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await api.bulkHide([container.id], false);
-    onUpdate();
-  };
-
   const handleCardClick = () => {
     if (selectionMode && onSelectToggle) {
       onSelectToggle(container.id);
-    } else {
+    } else if (!editMode) {
       setShowDetail(true);
+    }
+  };
+
+  // Drag source
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!editMode) { e.preventDefault(); return; }
+    e.dataTransfer.setData('text/plain', container.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  // Drop target: insert BEFORE this card
+  const handleDragOver = (e: React.DragEvent) => {
+    if (editMode) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const dragId = e.dataTransfer.getData('text/plain');
+    if (dragId && dragId !== container.id && onDropCard) {
+      onDropCard(dragId, container.id, groupName ?? null);
     }
   };
 
@@ -97,9 +101,13 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
     <>
       <div
         onClick={handleCardClick}
-        className={`bg-bg-card hover:bg-bg-card-hover border rounded-xl p-4 cursor-pointer transition-all group relative ${
+        draggable={editMode}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        className={`bg-bg-card hover:bg-bg-card-hover border rounded-xl p-4 transition-all group relative ${
           selected ? 'border-accent ring-1 ring-accent' : 'border-border-subtle hover:border-accent/30'
-        } ${container.is_hidden ? 'opacity-60' : ''}`}
+        } ${container.is_hidden ? 'opacity-60' : ''} ${editMode ? 'cursor-grab active:cursor-grabbing select-none' : 'cursor-pointer'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -127,15 +135,7 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-            {!selectionMode && (
-              <button
-                onClick={container.is_hidden ? handleUnhide : handleHide}
-                className="opacity-0 group-hover:opacity-100 text-xs transition-all"
-                title={container.is_hidden ? '取消隐藏' : '隐藏'}
-              >
-                {container.is_hidden ? '👁️' : '👁️‍🗨️'}
-              </button>
-            )}
+            {editMode && <span className="text-xs text-text-secondary">⠿</span>}
           </div>
         </div>
 
@@ -169,26 +169,6 @@ export default function ContainerCard({ container, onUpdate, selected, onSelectT
         {/* Hidden badge */}
         {container.is_hidden && (
           <span className="absolute top-2 right-2 text-xs text-yellow-500">隐藏</span>
-        )}
-
-        {/* Sort controls */}
-        {sortMode && onReorder && (
-          <div className="mt-3 pt-2 border-t border-border-subtle flex items-center justify-center gap-6">
-            <button
-              onClick={(e) => { e.stopPropagation(); onReorder(container.id, 'up'); }}
-              className="px-4 py-1.5 rounded-md border border-border-subtle text-text-secondary hover:text-accent hover:border-accent transition-colors touch-manipulation min-h-[36px]"
-              title="上移"
-            >
-              ↑
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onReorder(container.id, 'down'); }}
-              className="px-4 py-1.5 rounded-md border border-border-subtle text-text-secondary hover:text-accent hover:border-accent transition-colors touch-manipulation min-h-[36px]"
-              title="下移"
-            >
-              ↓
-            </button>
-          </div>
         )}
       </div>
 
