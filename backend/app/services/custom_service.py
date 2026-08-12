@@ -14,7 +14,7 @@ _ALL_FIELDS = (
     "is_favorite", "is_hidden",
     "jump_protocol", "jump_port",
     "private_url", "public_url", "url_preference",
-    "merge_name", "merge_url", "sort_order",
+    "merge_name", "merge_url", "sort_order", "tags",
 )
 
 

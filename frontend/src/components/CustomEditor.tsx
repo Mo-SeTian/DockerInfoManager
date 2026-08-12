@@ -25,6 +25,10 @@ export default function CustomEditor({ containerId, existing, onClose, onSaved }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [iconMode, setIconMode] = useState<'emoji' | 'url'>(iconUrl ? 'url' : 'emoji');
+  const [tagsInput, setTagsInput] = useState(() => {
+    try { const t = JSON.parse((existing.tags as string) || '[]'); return Array.isArray(t) ? t.join(', ') : ''; }
+    catch { return ''; }
+  });
 
   const handleSave = async () => {
     setSaving(true);
@@ -42,6 +46,7 @@ export default function CustomEditor({ containerId, existing, onClose, onSaved }
         public_url: publicUrl || null,
         url_preference: urlPref,
         merge_url: mergeUrl || null,
+        tags: tagsInput.trim() ? JSON.stringify(tagsInput.split(',').map(t => t.trim()).filter(Boolean)) : null,
       });
       onSaved();
       onClose();
@@ -99,6 +104,13 @@ export default function CustomEditor({ containerId, existing, onClose, onSaved }
         <Field label="备注">
           <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
             className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm resize-none" />
+        </Field>
+
+        {/* Tags */}
+        <Field label="标签（逗号分隔）">
+          <input value={tagsInput} onChange={e => setTagsInput(e.target.value)}
+            placeholder="web, mysql, 生产"
+            className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent" />
         </Field>
 
         {/* Jump URLs */}

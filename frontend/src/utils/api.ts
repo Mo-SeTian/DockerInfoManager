@@ -49,7 +49,7 @@ export const login = (username: string, password: string) =>
 export const logout = () => _post('/api/auth/logout');
 
 // Containers
-export const getContainers = () => _get('/api/containers');
+export const getContainers = () => _get('/api/containers?show_hidden=true');
 export const getContainerDetail = (id: string) => _get('/api/containers/' + id);
 
 // Stats

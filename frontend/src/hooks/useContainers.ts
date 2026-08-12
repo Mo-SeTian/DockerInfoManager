@@ -26,6 +26,7 @@ export interface ContainerData {
   merge_name: string | null;
   merge_url: string | null;
   sort_order: number;
+  tags: string | null;  // JSON array string e.g. '["web","prod"]'
 }
 
 export interface StatsData {

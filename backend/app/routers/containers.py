@@ -45,6 +45,7 @@ def list_containers(show_hidden: bool = Query(False)):
             "merge_name": custom.merge_name if custom else None,
             "merge_url": custom.merge_url if custom else None,
             "sort_order": custom.sort_order if custom else 0,
+            "tags": custom.tags if custom else None,
         })
     return result
 

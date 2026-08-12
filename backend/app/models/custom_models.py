@@ -20,6 +20,7 @@ class ContainerCustomUpdate(BaseModel):
     merge_name: Optional[str] = None
     merge_url: Optional[str] = None
     sort_order: Optional[int] = None
+    tags: Optional[str] = None  # JSON array as string, e.g. '["web","prod"]'
 
 
 class ContainerCustomResponse(BaseModel):
@@ -39,6 +40,7 @@ class ContainerCustomResponse(BaseModel):
     merge_name: Optional[str] = None
     merge_url: Optional[str] = None
     sort_order: int = 0
+    tags: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
